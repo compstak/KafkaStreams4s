@@ -1,0 +1,87 @@
+version: 2.1
+
+_defaults: &defaults
+  machine:
+    docker_layer_caching: false
+  working_directory: ~/repo
+  environment:
+    # Customize the JVM maximum heap limit
+    JVM_OPTS: -Xmx3000m
+    SBT_OPTS: -Xmx2000m
+    TERM: dumb
+
+workflows:
+  version: 2
+  development:
+    jobs:
+    - build:
+        filters:
+          tags:
+            only: /^v.*/
+    - publish-snapshot:
+        context: nexus
+        requires:
+          - build
+        filters:
+          branches:
+            only:
+              - master
+    - publish:
+        context: nexus
+        requires:
+          - build
+        filters:
+          tags:
+            only: /^v.*/
+          branches:
+            ignore: /.*/
+
+jobs:
+  build:
+    <<: *defaults
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v1-dependencies-{{ checksum "build.sbt" }}
+        - v1-dependencies-
+
+    - run:
+        name: Compile
+        command: cat /dev/null | sbt +validate
+
+    - save_cache:
+        paths:
+        - ~/.ivy2/cache
+        - ~/.m2
+        - ~/.sbt
+        - target
+        key: v1-dependencies-{{ checksum "build.sbt" }}
+
+
+  publish:
+    <<: *defaults
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v1-dependencies-{{ checksum "build.sbt" }}
+        - v1-dependencies-
+
+    - run:
+        name: Release snapshot version
+        command: cat /dev/null | sbt ci-release
+
+
+  publish-snapshot:
+    <<: *defaults
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v1-dependencies-{{ checksum "build.sbt" }}
+        - v1-dependencies-
+
+    - run:
+        name: Release tagged version
+        command: cat /dev/null | sbt ci-release

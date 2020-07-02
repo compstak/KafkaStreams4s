@@ -1,0 +1,52 @@
+package compstak.kafkastreams4s.debezium
+
+import io.circe.{Decoder, Encoder, Json}
+import io.circe.syntax._
+import io.circe.parser.decode
+import cats.implicits._
+import compstak.circe.debezium.DebeziumKeyPayload
+import compstak.circe.debezium.DebeziumKey
+import org.apache.kafka.streams.kstream.KTable
+import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.common.serialization.Serdes
+
+object JoinTables {
+
+  def join[K1: Encoder: DebeziumType, K2, V1, V2, Z](
+    a: KTable[K1, V1],
+    b: KTable[DebeziumKey[K2], V2],
+    idName: String,
+    topicName: String
+  )(
+    f: V1 => K2
+  )(g: (V1, V2) => Z) =
+    a.join(
+      b,
+      v2 => DebeziumKey(DebeziumKeyPayload(f(v2), idName), replicateJsonKeySchema(idName, topicName)),
+      (v1, v2) => g(v1, v2)
+    )
+
+  def leftJoin[K1: Encoder: DebeziumType, K2, V1, V2, Z](
+    a: KTable[K1, V1],
+    b: KTable[DebeziumKey[K2], V2],
+    idName: String,
+    topicName: String
+  )(
+    f: V1 => K2
+  )(g: (V1, V2) => Z) =
+    a.leftJoin(
+      b,
+      v2 => DebeziumKey(DebeziumKeyPayload(f(v2), idName), replicateJsonKeySchema(idName, topicName)),
+      (v1, v2) => g(v1, v2)
+    )
+
+  private def replicateJsonKeySchema[A: Encoder: DebeziumType](idName: String, topicName: String): Json =
+    Json.obj(
+      "type" -> "struct".asJson,
+      "name" -> s"$topicName.Key".asJson,
+      "optional" -> Json.False,
+      "fields" -> List(
+        Json.obj("field" -> idName.asJson, "type" -> DebeziumType[A].debeziumType.asJson, "optional" -> Json.False)
+      ).asJson
+    )
+}
