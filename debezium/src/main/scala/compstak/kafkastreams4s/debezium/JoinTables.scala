@@ -19,21 +19,21 @@ object JoinTables {
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z) =
+  )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.join(
       b,
       v1 => DebeziumKey(DebeziumKeyPayload(f(v1), idName), replicateJsonKeySchema[K2](idName, topicName)),
       (v1, v2) => g(v1, v2)
     )
 
-  def joinOption[K1, K2: DebeziumType, V1, V2, Z](
+  def joinOption[K1, K2: DebeziumType: Encoder, V1, V2, Z](
     a: KTable[K1, V1],
     b: KTable[DebeziumKey[K2], V2],
     idName: String,
     topicName: String
   )(
     f: V1 => Option[K2]
-  )(g: (V1, V2) => Z) =
+  )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.join(
       b,
       v1 =>
@@ -50,10 +50,10 @@ object JoinTables {
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z) =
+  )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.leftJoin(
       b,
-      v2 => DebeziumKey(DebeziumKeyPayload(f(v2), idName), replicateJsonKeySchema[K2](idName, topicName)),
+      v1 => DebeziumKey(DebeziumKeyPayload(f(v1), idName), replicateJsonKeySchema[K2](idName, topicName)),
       (v1, v2) => g(v1, v2)
     )
 
@@ -64,7 +64,7 @@ object JoinTables {
     topicName: String
   )(
     f: V1 => Option[K2]
-  )(g: (V1, V2) => Z) =
+  )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.leftJoin(
       b,
       v1 =>

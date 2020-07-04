@@ -32,7 +32,7 @@ class EndToEndTests extends munit.FunSuite {
   implicit val ctx = IO.contextShift(ExecutionContext.global)
   implicit val timer = IO.timer(ExecutionContext.global)
 
-  val kafkaHost = "localhost:9200"
+  val kafkaHost = "localhost:9092"
   val outputTopic = "output.topic"
   val (foo, bar) = ("foo", "bar")
 
@@ -92,8 +92,10 @@ class EndToEndTests extends munit.FunSuite {
 
   def insertStmt: ConnectionIO[Unit] =
     sql"""
-      INSERT INTO atable (foo) VALUES ($foo);
-      INSERT INTO btable (a_id, bar) VALUES (0, $bar);
+      WITH a AS (
+        INSERT INTO atable (foo) VALUES ($foo) RETURNING id
+      )
+      INSERT INTO btable (a_id, bar) VALUES ((SELECT id FROM a), $bar);
     """.update.run.void
 
   test("Joins two debezium streams and aggregates the result") {
