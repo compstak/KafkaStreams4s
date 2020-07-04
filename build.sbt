@@ -25,10 +25,17 @@ inThisBuild(
   )
 )
 
+enablePlugins(DockerComposePlugin)
+
 val CatsEffectVersion = "2.1.3"
 val CirceVersion = "0.13.0"
 val CirceDebeziumVersion = "0.8.0"
+val DoobieVersion = "0.8.8"
+val FS2KafkaVersion = "1.0.0"
+val Http4sVersion = "0.21.6"
 val KafkaVersion = "2.5.0"
+val KafkaConnectHttp4sVersion = "0.5.0"
+val MunitVersion = "0.7.9"
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -68,7 +75,7 @@ lazy val core = (project in file("core"))
 lazy val circe = (project in file("circe"))
   .settings(commonSettings)
   .settings(
-    name := "kafka-streams4s-core",
+    name := "kafka-streams4s-circe",
     libraryDependencies ++= Seq(
       "org.apache.kafka" % "kafka-streams" % KafkaVersion,
       "io.circe" %% "circe-parser" % CirceVersion
@@ -90,7 +97,18 @@ lazy val debezium = (project in file("debezium"))
 lazy val tests = (project in file("tests"))
   .settings(commonSettings)
   .settings(noPublishSettings)
-  .settings(name := "kafka-streams4s-tests")
+  .settings(
+    name := "kafka-streams4s-tests",
+    libraryDependencies ++= Seq(
+      "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % Test,
+      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion % Test,
+      "io.circe" %% "circe-literal" % CirceVersion % Test,
+      "org.http4s" %% "http4s-async-http-client" % Http4sVersion % Test,
+      "org.tpolecat" %% "doobie-postgres" % DoobieVersion % Test,
+      "org.scalameta" %% "munit" % MunitVersion % Test
+    ),
+    testFrameworks += new TestFramework("munit.Framework")
+  )
   .dependsOn(core, circe, debezium)
 
 lazy val kafkaStreams4s = (project in file("."))

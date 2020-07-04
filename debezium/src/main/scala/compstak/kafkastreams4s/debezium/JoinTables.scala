@@ -12,7 +12,7 @@ import org.apache.kafka.common.serialization.Serdes
 
 object JoinTables {
 
-  def join[K1: Encoder: DebeziumType, K2, V1, V2, Z](
+  def join[K1, K2: DebeziumType, V1, V2, Z](
     a: KTable[K1, V1],
     b: KTable[DebeziumKey[K2], V2],
     idName: String,
@@ -22,11 +22,28 @@ object JoinTables {
   )(g: (V1, V2) => Z) =
     a.join(
       b,
-      v2 => DebeziumKey(DebeziumKeyPayload(f(v2), idName), replicateJsonKeySchema(idName, topicName)),
+      v1 => DebeziumKey(DebeziumKeyPayload(f(v1), idName), replicateJsonKeySchema[K2](idName, topicName)),
       (v1, v2) => g(v1, v2)
     )
 
-  def leftJoin[K1: Encoder: DebeziumType, K2, V1, V2, Z](
+  def joinOption[K1, K2: DebeziumType, V1, V2, Z](
+    a: KTable[K1, V1],
+    b: KTable[DebeziumKey[K2], V2],
+    idName: String,
+    topicName: String
+  )(
+    f: V1 => Option[K2]
+  )(g: (V1, V2) => Z) =
+    a.join(
+      b,
+      v1 =>
+        f(v1)
+          .map(k2 => DebeziumKey(DebeziumKeyPayload(k2, idName), replicateJsonKeySchema[K2](idName, topicName)))
+          .orNull,
+      (v1, v2) => g(v1, v2)
+    )
+
+  def leftJoin[K1, K2: DebeziumType, V1, V2, Z](
     a: KTable[K1, V1],
     b: KTable[DebeziumKey[K2], V2],
     idName: String,
@@ -36,11 +53,28 @@ object JoinTables {
   )(g: (V1, V2) => Z) =
     a.leftJoin(
       b,
-      v2 => DebeziumKey(DebeziumKeyPayload(f(v2), idName), replicateJsonKeySchema(idName, topicName)),
+      v2 => DebeziumKey(DebeziumKeyPayload(f(v2), idName), replicateJsonKeySchema[K2](idName, topicName)),
       (v1, v2) => g(v1, v2)
     )
 
-  private def replicateJsonKeySchema[A: Encoder: DebeziumType](idName: String, topicName: String): Json =
+  def leftJoinOption[K1, K2: DebeziumType, V1, V2, Z](
+    a: KTable[K1, V1],
+    b: KTable[DebeziumKey[K2], V2],
+    idName: String,
+    topicName: String
+  )(
+    f: V1 => Option[K2]
+  )(g: (V1, V2) => Z) =
+    a.leftJoin(
+      b,
+      v1 =>
+        f(v1)
+          .map(k2 => DebeziumKey(DebeziumKeyPayload(k2, idName), replicateJsonKeySchema[K2](idName, topicName)))
+          .orNull,
+      (v1, v2) => g(v1, v2)
+    )
+
+  private def replicateJsonKeySchema[A: DebeziumType](idName: String, topicName: String): Json =
     Json.obj(
       "type" -> "struct".asJson,
       "name" -> s"$topicName.Key".asJson,
