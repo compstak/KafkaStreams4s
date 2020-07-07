@@ -22,7 +22,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.join(
       b,
-      v1 => DebeziumKey(DebeziumKeyPayload(f(v1), idName), replicateJsonKeySchema[K2](idName, topicName)),
+      v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload(f(v1), idName)),
       (v1, v2) => g(v1, v2)
     )
 
@@ -38,7 +38,7 @@ object JoinTables {
       b,
       v1 =>
         f(v1)
-          .map(k2 => DebeziumKey(DebeziumKeyPayload(k2, idName), replicateJsonKeySchema[K2](idName, topicName)))
+          .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload(k2, idName)))
           .orNull,
       (v1, v2) => g(v1, v2)
     )
@@ -53,7 +53,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.leftJoin(
       b,
-      v1 => DebeziumKey(DebeziumKeyPayload(f(v1), idName), replicateJsonKeySchema[K2](idName, topicName)),
+      v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload(f(v1), idName)),
       (v1, v2) => g(v1, v2)
     )
 
@@ -69,18 +69,18 @@ object JoinTables {
       b,
       v1 =>
         f(v1)
-          .map(k2 => DebeziumKey(DebeziumKeyPayload(k2, idName), replicateJsonKeySchema[K2](idName, topicName)))
+          .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload(k2, idName)))
           .orNull,
       (v1, v2) => g(v1, v2)
     )
 
-  private def replicateJsonKeySchema[A: DebeziumType](idName: String, topicName: String): Json =
+  private[kafkastreams4s] def replicateJsonKeySchema[A: DebeziumType](idName: String, topicName: String): Json =
     Json.obj(
       "type" -> "struct".asJson,
-      "name" -> s"$topicName.Key".asJson,
-      "optional" -> Json.False,
       "fields" -> List(
-        Json.obj("field" -> idName.asJson, "type" -> DebeziumType[A].debeziumType.asJson, "optional" -> Json.False)
-      ).asJson
+        Json.obj("type" -> DebeziumType[A].debeziumType.asJson, "optional" -> Json.False, "field" -> idName.asJson)
+      ).asJson,
+      "optional" -> Json.False,
+      "name" -> s"$topicName.Key".asJson
     )
 }

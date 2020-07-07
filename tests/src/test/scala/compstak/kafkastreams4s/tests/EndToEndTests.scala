@@ -24,10 +24,12 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import java.time.Duration
 import java.{util => ju}
+import org.apache.kafka.common.serialization.Serdes
+import cats.effect.ExitCode
 
 class EndToEndTests extends munit.FunSuite {
 
-  override val munitTimeout = 2.minutes
+  override val munitTimeout = 3.minutes
 
   implicit val ctx = IO.contextShift(ExecutionContext.global)
   implicit val timer = IO.timer(ExecutionContext.global)
@@ -66,14 +68,22 @@ class EndToEndTests extends munit.FunSuite {
             "database.password": $password,
             "database.dbname" : $database,
             "database.server.name": "experiment",
-            "table.whitelist": "atable, btable"
+            "table.whitelist": "public.atable, public.btable"
           }
           """
         ),
         "experiment"
       ).evalMap(_.migrate)
-      _ <- KafkaStream.run.background
       _ <- Resource.liftF(insertStmt.transact(xa))
+      // run the kafka streams topology for a minute and then stop it
+      _ <- Resource.liftF(
+        (
+          KafkaStream.run,
+          IO.sleep(1.minutes)
+        ).parTupled.void
+          .timeout(1.minute)
+          .recoverWith { case t: java.util.concurrent.TimeoutException => IO.unit }
+      )
     } yield ()
 
   def ddl: ConnectionIO[Unit] = sql"""
@@ -99,7 +109,9 @@ class EndToEndTests extends munit.FunSuite {
     """.update.run.void
 
   test("Joins two debezium streams and aggregates the result") {
-    make.use(_ => Consumer.consume.timeout(1.minute).map(assertEquals(_, (foo, bar)))).unsafeToFuture()
+    make
+      .use(_ => Consumer.consume.timeout(2.minute).map(assertEquals(_, (foo, bar))))
+      .unsafeToFuture()
   }
 
   object KafkaStream {
@@ -114,17 +126,17 @@ class EndToEndTests extends munit.FunSuite {
       val builder = new StreamsBuilder
       val as =
         builder.table(
-          "experiment.atable",
+          "experiment.public.atable",
           Consumed.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[DebeziumValue[Atable]])
         )
       val bs =
         builder.table(
-          "experiment.btable",
+          "experiment.public.btable",
           Consumed.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[DebeziumValue[Btable]])
         )
 
       val output: KTable[DebeziumKey[Int], (String, String)] =
-        JoinTables.joinOption(bs, as, "id", "experiment.atable")(extractAId)(valueJoiner)
+        JoinTables.joinOption(bs, as, "id", "experiment.public.atable")(extractAId)(valueJoiner)
 
       output.toStream().to(outputTopic, Produced.`with`(CirceSerdes.serdeForCirce, CirceSerdes.serdeForCirce))
       builder.build()
