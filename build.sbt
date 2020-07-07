@@ -49,7 +49,7 @@ scalacOptions ++= Seq(
 
 addCommandAlias("fmtAll", ";scalafmt; test:scalafmt; scalafmtSbt")
 addCommandAlias("fmtCheck", ";scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
-addCommandAlias("validate", ";fmtCheck; test")
+addCommandAlias("validate", ";fmtCheck; test; it:compile")
 
 lazy val commonSettings = Seq(
   crossScalaVersions := supportedScalaVersions,
@@ -95,18 +95,22 @@ lazy val debezium = (project in file("debezium"))
   .dependsOn(circe)
 
 lazy val tests = (project in file("tests"))
+  .configs(IntegrationTest)
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(
     name := "kafka-streams4s-tests",
     libraryDependencies ++= Seq(
-      "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % Test,
-      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion % Test,
-      "io.circe" %% "circe-literal" % CirceVersion % Test,
-      "org.http4s" %% "http4s-async-http-client" % Http4sVersion % Test,
-      "org.tpolecat" %% "doobie-postgres" % DoobieVersion % Test,
-      "org.scalameta" %% "munit" % MunitVersion % Test
+      "org.scalameta" %% "munit" % MunitVersion % Test,
+      "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
+      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion % IntegrationTest,
+      "io.circe" %% "circe-literal" % CirceVersion % IntegrationTest,
+      "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
+      "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest,
+      "org.scalameta" %% "munit" % MunitVersion % IntegrationTest
     ),
+    Defaults.itSettings,
+    inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
   )
   .dependsOn(core, circe, debezium)

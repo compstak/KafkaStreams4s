@@ -138,7 +138,12 @@ class EndToEndTests extends munit.FunSuite {
       val output: KTable[DebeziumKey[Int], (String, String)] =
         JoinTables.joinOption(bs, as, "id", "experiment.public.atable")(extractAId)(valueJoiner)
 
-      output.toStream().to(outputTopic, Produced.`with`(CirceSerdes.serdeForCirce, CirceSerdes.serdeForCirce))
+      output
+        .toStream()
+        .to(
+          outputTopic,
+          Produced.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[(String, String)])
+        )
       builder.build()
     }
 
