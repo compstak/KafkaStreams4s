@@ -12,41 +12,75 @@ import org.apache.kafka.common.serialization.Serdes
 
 object JoinTables {
 
-  def join[K1: Encoder: DebeziumType, K2, V1, V2, Z](
+  def join[K1, K2: DebeziumType, V1, V2, Z](
     a: KTable[K1, V1],
     b: KTable[DebeziumKey[K2], V2],
     idName: String,
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z) =
+  )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.join(
       b,
-      v2 => DebeziumKey(DebeziumKeyPayload(f(v2), idName), replicateJsonKeySchema(idName, topicName)),
+      v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload(f(v1), idName)),
       (v1, v2) => g(v1, v2)
     )
 
-  def leftJoin[K1: Encoder: DebeziumType, K2, V1, V2, Z](
+  def joinOption[K1, K2: DebeziumType: Encoder, V1, V2, Z](
+    a: KTable[K1, V1],
+    b: KTable[DebeziumKey[K2], V2],
+    idName: String,
+    topicName: String
+  )(
+    f: V1 => Option[K2]
+  )(g: (V1, V2) => Z): KTable[K1, Z] =
+    a.join(
+      b,
+      v1 =>
+        f(v1)
+          .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload(k2, idName)))
+          .orNull,
+      (v1, v2) => g(v1, v2)
+    )
+
+  def leftJoin[K1, K2: DebeziumType, V1, V2, Z](
     a: KTable[K1, V1],
     b: KTable[DebeziumKey[K2], V2],
     idName: String,
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z) =
+  )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.leftJoin(
       b,
-      v2 => DebeziumKey(DebeziumKeyPayload(f(v2), idName), replicateJsonKeySchema(idName, topicName)),
+      v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload(f(v1), idName)),
       (v1, v2) => g(v1, v2)
     )
 
-  private def replicateJsonKeySchema[A: Encoder: DebeziumType](idName: String, topicName: String): Json =
+  def leftJoinOption[K1, K2: DebeziumType, V1, V2, Z](
+    a: KTable[K1, V1],
+    b: KTable[DebeziumKey[K2], V2],
+    idName: String,
+    topicName: String
+  )(
+    f: V1 => Option[K2]
+  )(g: (V1, V2) => Z): KTable[K1, Z] =
+    a.leftJoin(
+      b,
+      v1 =>
+        f(v1)
+          .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload(k2, idName)))
+          .orNull,
+      (v1, v2) => g(v1, v2)
+    )
+
+  private[kafkastreams4s] def replicateJsonKeySchema[A: DebeziumType](idName: String, topicName: String): Json =
     Json.obj(
       "type" -> "struct".asJson,
-      "name" -> s"$topicName.Key".asJson,
-      "optional" -> Json.False,
       "fields" -> List(
-        Json.obj("field" -> idName.asJson, "type" -> DebeziumType[A].debeziumType.asJson, "optional" -> Json.False)
-      ).asJson
+        Json.obj("type" -> DebeziumType[A].debeziumType.asJson, "optional" -> Json.False, "field" -> idName.asJson)
+      ).asJson,
+      "optional" -> Json.False,
+      "name" -> s"$topicName.Key".asJson
     )
 }

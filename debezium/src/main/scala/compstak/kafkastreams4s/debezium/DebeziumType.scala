@@ -17,10 +17,10 @@ object DebeziumType {
 
   def apply[A: DebeziumType]: DebeziumType[A] = implicitly
 
-  implicit val intType: DebeziumType[Int] = fromString("INT32")
-  implicit val shortType: DebeziumType[Short] = fromString("INT16")
-  implicit val longType: DebeziumType[Long] = fromString("INT64")
-  implicit val stringType: DebeziumType[String] = fromString("STRING")
-  implicit val uuidType: DebeziumType[ju.UUID] = fromString("STRING")
+  implicit val intType: DebeziumType[Int] = fromString("int32")
+  implicit val shortType: DebeziumType[Short] = fromString("int16")
+  implicit val longType: DebeziumType[Long] = fromString("int64")
+  implicit val stringType: DebeziumType[String] = fromString("string")
+  implicit val uuidType: DebeziumType[ju.UUID] = fromString("string")
 
 }

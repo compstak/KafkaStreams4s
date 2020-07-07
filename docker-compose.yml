@@ -18,13 +18,19 @@ services:
       - 2888:2888
       - 3888:3888
   kafka:
-    image: debezium/kafka:${DEBEZIUM_VERSION:-1.2}
+    image: confluentinc/cp-kafka:5.4.0
     ports:
       - 9092:9092
     links:
       - zookeeper
     environment:
       - ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      - KAFKA_METRICS_REPORTERS=io.confluent.metrics.reporter.ConfluentMetricsReporter
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
   connect:
     image: debezium/connect:${DEBEZIUM_VERSION:-1.2}
     ports:
@@ -33,11 +39,13 @@ services:
       - database
       - kafka
     environment:
-      - BOOTSTRAP_SERVERS=kafka:9092
+      - BOOTSTRAP_SERVERS=kafka:29092
       - GROUP_ID=1
       - CONFIG_STORAGE_TOPIC=my_connect_configs
       - OFFSET_STORAGE_TOPIC=my_connect_offsets
       - STATUS_STORAGE_TOPIC=my_source_connect_statuses
+      - AUTO_CREATE_TOPICS_ENABLE=true
+
 networks:
   default:
 volumes:
