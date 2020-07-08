@@ -14,22 +14,22 @@ case class DebeziumTable[K, V](
 ) {
 
   def join[K2: DebeziumType, V2, Z](other: DebeziumTable[K2, V2])(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
-    copy(toKTable = JoinTables.join(toKTable, other.toKTable, other.topicName, other.idName)(f)(g))
+    copy(toKTable = JoinTables.join(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
 
   def joinOption[K2: DebeziumType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => Option[K2])(g: (V, V2) => Z): DebeziumTable[K, Z] =
-    copy(toKTable = JoinTables.joinOption(toKTable, other.toKTable, other.topicName, other.idName)(f)(g))
+    copy(toKTable = JoinTables.joinOption(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
 
   def leftJoin[K2: DebeziumType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
-    copy(toKTable = JoinTables.leftJoin(toKTable, other.toKTable, other.topicName, other.idName)(f)(g))
+    copy(toKTable = JoinTables.leftJoin(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
 
   def leftJoinOption[K2: DebeziumType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => Option[K2])(g: (V, V2) => Z): DebeziumTable[K, Z] =
-    copy(toKTable = JoinTables.leftJoinOption(toKTable, other.toKTable, other.topicName, other.idName)(f)(g))
+    copy(toKTable = JoinTables.leftJoinOption(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
 }
 
 object DebeziumTable {
