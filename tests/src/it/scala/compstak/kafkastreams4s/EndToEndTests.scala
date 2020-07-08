@@ -123,20 +123,14 @@ class EndToEndTests extends munit.FunSuite {
     }
 
     def topology = {
+      import compstak.kafkastreams4s.debezium.DebeziumTable
       val builder = new StreamsBuilder
-      val as =
-        builder.table(
-          "experiment.public.atable",
-          Consumed.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[DebeziumValue[Atable]])
-        )
-      val bs =
-        builder.table(
-          "experiment.public.btable",
-          Consumed.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[DebeziumValue[Btable]])
-        )
+      val as = DebeziumTable.withCirceDebezium[Int, Atable](builder, "experiment.public.atable", "id")
+
+      val bs = DebeziumTable.withCirceDebezium[Int, Btable](builder, "experiment.public.btable", "id")
 
       val output: KTable[DebeziumKey[Int], (String, String)] =
-        JoinTables.joinOption(bs, as, "id", "experiment.public.atable")(extractAId)(valueJoiner)
+        bs.joinOption(as)(extractAId)(valueJoiner).toKTable
 
       output
         .toStream()
