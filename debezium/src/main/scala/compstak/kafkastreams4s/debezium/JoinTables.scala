@@ -26,7 +26,7 @@ object JoinTables {
       (v1, v2) => g(v1, v2)
     )
 
-  def joinOption[K1, K2: DebeziumType: Encoder, V1, V2, Z](
+  def joinOption[K1, K2: DebeziumType, V1, V2, Z](
     a: KTable[K1, V1],
     b: KTable[DebeziumKey[K2], V2],
     idName: String,

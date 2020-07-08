@@ -15,7 +15,7 @@ import compstak.circe.debezium.{DebeziumKey, DebeziumValue}
 import compstak.http4s.kafka.connect.KafkaConnectMigration
 import compstak.kafkastreams4s.circe.CirceSerdes
 import compstak.kafkastreams4s.Platform
-import compstak.kafkastreams4s.debezium.JoinTables
+import compstak.kafkastreams4s.debezium.DebeziumTable
 import org.apache.kafka.streams.StreamsBuilder
 import io.circe.Encoder
 import org.apache.kafka.streams.StreamsConfig
@@ -123,20 +123,13 @@ class EndToEndTests extends munit.FunSuite {
     }
 
     def topology = {
-      val builder = new StreamsBuilder
-      val as =
-        builder.table(
-          "experiment.public.atable",
-          Consumed.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[DebeziumValue[Atable]])
-        )
-      val bs =
-        builder.table(
-          "experiment.public.btable",
-          Consumed.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[DebeziumValue[Btable]])
-        )
+      val sb = new StreamsBuilder
+
+      val as = DebeziumTable.withCirceDebezium[Int, Atable](sb, "experiment.public.atable", "id")
+      val bs = DebeziumTable.withCirceDebezium[Int, Btable](sb, "experiment.public.btable", "id")
 
       val output: KTable[DebeziumKey[Int], (String, String)] =
-        JoinTables.joinOption(bs, as, "id", "experiment.public.atable")(extractAId)(valueJoiner)
+        bs.joinOption(as)(extractAId)(valueJoiner).toKTable
 
       output
         .toStream()
@@ -144,7 +137,7 @@ class EndToEndTests extends munit.FunSuite {
           outputTopic,
           Produced.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[(String, String)])
         )
-      builder.build()
+      sb.build()
     }
 
     def extractAId(d: DebeziumValue[Btable]): Option[Int] =
