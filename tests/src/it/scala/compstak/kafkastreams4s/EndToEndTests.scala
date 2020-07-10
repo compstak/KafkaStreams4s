@@ -87,7 +87,6 @@ class EndToEndTests extends munit.FunSuite {
     } yield ()
 
   def ddl: ConnectionIO[Unit] = sql"""
-
     CREATE TABLE IF NOT EXISTS atable (
       id SERIAL PRIMARY KEY,
       foo TEXT
@@ -125,7 +124,8 @@ class EndToEndTests extends munit.FunSuite {
     def topology = {
       import compstak.kafkastreams4s.debezium.DebeziumTable
       val builder = new StreamsBuilder
-      val as = DebeziumTable.withCirceDebezium[Int, Atable](builder, "experiment.public.atable", "id")
+      val as: DebeziumTable[Int, DebeziumValue[Atable]] =
+        DebeziumTable.withCirceDebezium[Int, Atable](builder, "experiment.public.atable", "id")
 
       val bs = DebeziumTable.withCirceDebezium[Int, Btable](builder, "experiment.public.btable", "id")
 
