@@ -9,6 +9,7 @@ import compstak.circe.debezium.DebeziumKey
 import org.apache.kafka.streams.kstream.KTable
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
+import io.circe.JsonObject
 
 object JoinTables {
 
@@ -74,8 +75,8 @@ object JoinTables {
       (v1, v2) => g(v1, v2)
     )
 
-  private[kafkastreams4s] def replicateJsonKeySchema[A: DebeziumType](idName: String, topicName: String): Json =
-    Json.obj(
+  private[kafkastreams4s] def replicateJsonKeySchema[A: DebeziumType](idName: String, topicName: String): JsonObject =
+    JsonObject(
       "type" -> "struct".asJson,
       "fields" -> List(
         Json.obj("type" -> DebeziumType[A].debeziumType.asJson, "optional" -> Json.False, "field" -> idName.asJson)
