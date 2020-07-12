@@ -27,7 +27,7 @@ inThisBuild(
 
 enablePlugins(DockerComposePlugin)
 
-val CatsEffectVersion = "2.1.3"
+val CatsEffectVersion = "2.1.4"
 val CirceVersion = "0.13.0"
 val CirceDebeziumVersion = "0.11.0"
 val DoobieVersion = "0.8.8"
