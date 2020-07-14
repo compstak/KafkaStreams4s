@@ -6,14 +6,11 @@ import org.apache.kafka.common.serialization.Serde
 import compstak.kafkastreams4s.circe.CirceSerdes
 import compstak.circe.debezium.{DebeziumKey, DebeziumValue}
 import io.circe.{Decoder, Encoder}
-import cats.FunctorFilter
-import cats.Functor
-import org.apache.kafka.streams.kstream.ValueMapper
-import org.apache.kafka.streams.kstream.ValueMapperWithKey
+import cats.{Functor, FunctorFilter}
 
 case class DebeziumTable[K, V](
   topicName: String,
-  idName: String,
+  idNameOrKeySchema: Either[String, DebeziumCompositeType[K]],
   toKTable: KTable[DebeziumKey[K], V]
 ) {
 
@@ -36,22 +33,40 @@ case class DebeziumTable[K, V](
   def join[K2: DebeziumPrimitiveType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
-    copy(toKTable = JoinTables.join(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
+    other.idNameOrKeySchema match {
+      case Left(idName) => copy(toKTable = JoinTables.join(toKTable, other.toKTable, idName, other.topicName)(f)(g))
+      case Right(schema) =>
+        copy(toKTable = JoinTables.joinComposite(toKTable, other.toKTable, schema, other.topicName)(f)(g))
+    }
 
   def joinOption[K2: DebeziumPrimitiveType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => Option[K2])(g: (V, V2) => Z): DebeziumTable[K, Z] =
-    copy(toKTable = JoinTables.joinOption(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
+    other.idNameOrKeySchema match {
+      case Left(idName) =>
+        copy(toKTable = JoinTables.joinOption(toKTable, other.toKTable, idName, other.topicName)(f)(g))
+      case Right(schema) =>
+        copy(toKTable = JoinTables.joinOptionComposite(toKTable, other.toKTable, schema, other.topicName)(f)(g))
+    }
 
   def leftJoin[K2: DebeziumPrimitiveType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
-    copy(toKTable = JoinTables.leftJoin(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
+    other.idNameOrKeySchema match {
+      case Left(idName) => copy(toKTable = JoinTables.leftJoin(toKTable, other.toKTable, idName, other.topicName)(f)(g))
+      case Right(schema) =>
+        copy(toKTable = JoinTables.leftJoinComposite(toKTable, other.toKTable, schema, other.topicName)(f)(g))
+    }
 
   def leftJoinOption[K2: DebeziumPrimitiveType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => Option[K2])(g: (V, V2) => Z): DebeziumTable[K, Z] =
-    copy(toKTable = JoinTables.leftJoinOption(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
+    other.idNameOrKeySchema match {
+      case Left(idName) =>
+        copy(toKTable = JoinTables.leftJoinOption(toKTable, other.toKTable, idName, other.topicName)(f)(g))
+      case Right(schema) =>
+        copy(toKTable = JoinTables.leftJoinOptionComposite(toKTable, other.toKTable, schema, other.topicName)(f)(g))
+    }
 }
 
 object DebeziumTable {
@@ -62,7 +77,17 @@ object DebeziumTable {
   ): DebeziumTable[K, DebeziumValue[V]] = {
     val keySerde = CirceSerdes.serdeForCirce[DebeziumKey[K]]
     val valueSerde = CirceSerdes.serdeForCirce[DebeziumValue[V]]
-    DebeziumTable(topicName, idName, sb.table(topicName, Consumed.`with`(keySerde, valueSerde)))
+    DebeziumTable(topicName, Left(idName), sb.table(topicName, Consumed.`with`(keySerde, valueSerde)))
+  }
+
+  def withCompositeKey[K: Encoder: Decoder, V: Encoder: Decoder](
+    sb: StreamsBuilder,
+    topicName: String,
+    schema: DebeziumCompositeType[K]
+  ): DebeziumTable[K, DebeziumValue[V]] = {
+    val keySerde = CirceSerdes.serdeForCirce[DebeziumKey[K]]
+    val valueSerde = CirceSerdes.serdeForCirce[DebeziumValue[V]]
+    DebeziumTable(topicName, Right(schema), sb.table(topicName, Consumed.`with`(keySerde, valueSerde)))
   }
 
   implicit def debeziumTableFunctor[K]: Functor[DebeziumTable[K, *]] = new Functor[DebeziumTable[K, *]] {
