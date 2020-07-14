@@ -33,20 +33,22 @@ case class DebeziumTable[K, V](
     copy(toKTable = mapped.filter((k, o) => o.isDefined).mapValues(_.get))
   }
 
-  def join[K2: DebeziumType, V2, Z](other: DebeziumTable[K2, V2])(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
+  def join[K2: DebeziumPrimitiveType, V2, Z](
+    other: DebeziumTable[K2, V2]
+  )(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
     copy(toKTable = JoinTables.join(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
 
-  def joinOption[K2: DebeziumType, V2, Z](
+  def joinOption[K2: DebeziumPrimitiveType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => Option[K2])(g: (V, V2) => Z): DebeziumTable[K, Z] =
     copy(toKTable = JoinTables.joinOption(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
 
-  def leftJoin[K2: DebeziumType, V2, Z](
+  def leftJoin[K2: DebeziumPrimitiveType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
     copy(toKTable = JoinTables.leftJoin(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
 
-  def leftJoinOption[K2: DebeziumType, V2, Z](
+  def leftJoinOption[K2: DebeziumPrimitiveType, V2, Z](
     other: DebeziumTable[K2, V2]
   )(f: V => Option[K2])(g: (V, V2) => Z): DebeziumTable[K, Z] =
     copy(toKTable = JoinTables.leftJoinOption(toKTable, other.toKTable, other.idName, other.topicName)(f)(g))
