@@ -11,12 +11,19 @@ trait DebeziumCompositeType[A] {
 }
 
 object DebeziumCompositeType {
+
+  /**
+   * Returns a simple debezium "struct" schema with a single field
+   */
   def fromPrimitive[A: DebeziumPrimitiveType](fieldName: String): DebeziumCompositeType[A] =
     new DebeziumCompositeType[A] {
       def schema: List[DebeziumFieldSchema] =
         List(DebeziumFieldSchema(DebeziumPrimitiveType[A].debeziumType, false, fieldName))
     }
 
+  /**
+   * Returns a simple debezium "struct" schema with a single optional field
+   */
   def fromPromitiveOption[A: DebeziumPrimitiveType](fieldName: String): DebeziumCompositeType[A] =
     new DebeziumCompositeType[A] {
       def schema: List[DebeziumFieldSchema] =

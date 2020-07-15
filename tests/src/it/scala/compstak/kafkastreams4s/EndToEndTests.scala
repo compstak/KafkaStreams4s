@@ -79,9 +79,9 @@ class EndToEndTests extends munit.FunSuite {
       _ <- Resource.liftF(
         (
           KafkaStream.run,
-          IO.sleep(1.minutes)
+          IO.sleep(2.minutes)
         ).parTupled.void
-          .timeout(1.minute)
+          .timeout(2.minute)
           .recoverWith { case t: java.util.concurrent.TimeoutException => IO.unit }
       )
     } yield ()
@@ -140,18 +140,11 @@ class EndToEndTests extends munit.FunSuite {
       val asAndBs: DebeziumTable[Int, (String, String)] =
         bs.joinOption(as)(extractAId)(valueJoiner)
 
-      val output: KTable[DebeziumKey[Int], (String, String, String)] =
+      val output: DebeziumTable[Int, (String, String, String)] =
         cs.joinOption(asAndBs)(extractBId) { case (dvc, (foo, bar)) => (foo, bar, dvc.payload.after.foldMap(_.baz)) }
-          .toKTable
 
-      output
-        .toStream()
-        .to(
-          outputTopic,
-          Produced
-            .`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[(String, String, String)])
-        )
-      builder.build()
+      output.to[IO](outputTopic) >>
+        IO(builder.build())
     }
 
     def extractAId(d: DebeziumValue[Btable]): Option[Int] =
@@ -164,7 +157,9 @@ class EndToEndTests extends munit.FunSuite {
       (a.payload.after.foldMap(_.foo), b.payload.after.foldMap(_.bar))
 
     def run: IO[Unit] =
-      Platform.streamsResource[IO](topology, props, Duration.ofSeconds(2)).use(Platform.runStreams[IO])
+      topology.flatMap(top =>
+        Platform.streamsResource[IO](top, props, Duration.ofSeconds(2)).use(Platform.runStreams[IO])
+      )
   }
 
   object Consumer {
