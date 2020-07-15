@@ -23,7 +23,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.join(
       b,
-      v1 =>
+      (v1: V1) =>
         DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1))),
       (v1, v2) => g(v1, v2),
       Materialized
@@ -40,7 +40,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.join(
       b,
-      v1 =>
+      (v1: V1) =>
         f(v1)
           .map(k2 =>
             DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(k2))
@@ -61,7 +61,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.leftJoin(
       b,
-      v1 =>
+      (v1: V1) =>
         DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1))),
       (v1, v2) => g(v1, v2),
       Materialized
@@ -78,7 +78,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.leftJoin(
       b,
-      v1 =>
+      (v1: V1) =>
         f(v1)
           .map(k2 =>
             DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(k2))
@@ -99,7 +99,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.join(
       b,
-      v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName)),
+      (v1: V1) => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName)),
       (v1, v2) => g(v1, v2),
       Materialized
         .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
@@ -115,7 +115,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.join(
       b,
-      v1 =>
+      (v1: V1) =>
         f(v1)
           .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
           .orNull,
@@ -134,7 +134,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.leftJoin(
       b,
-      v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName)),
+      (v1: V1) => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName)),
       (v1, v2) => g(v1, v2),
       Materialized
         .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
@@ -150,7 +150,7 @@ object JoinTables {
   )(g: (V1, V2) => Z): KTable[K1, Z] =
     a.leftJoin(
       b,
-      v1 =>
+      (v1: V1) =>
         f(v1)
           .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
           .orNull,
