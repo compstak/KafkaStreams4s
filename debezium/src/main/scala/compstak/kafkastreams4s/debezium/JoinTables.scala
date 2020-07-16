@@ -6,10 +6,8 @@ import io.circe.parser.decode
 import cats.implicits._
 import compstak.circe.debezium._
 import compstak.kafkastreams4s.circe.CirceSerdes
-import org.apache.kafka.streams.kstream.{KTable, Materialized}
+import org.apache.kafka.streams.kstream.KTable
 import org.apache.kafka.common.serialization.{Serde, Serdes}
-import org.apache.kafka.streams.state.KeyValueStore
-import org.apache.kafka.common.utils.Bytes
 
 object JoinTables {
 
@@ -26,8 +24,7 @@ object JoinTables {
       (v1: V1) =>
         DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1))),
       (v1, v2) => g(v1, v2),
-      Materialized
-        .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
+      CirceSerdes.materializedForCirce[K1, Z]
     )
 
   def joinOptionComposite[K1: Encoder: Decoder, K2, V1, V2, Z: Encoder: Decoder](
@@ -47,8 +44,7 @@ object JoinTables {
           )
           .orNull,
       (v1, v2) => g(v1, v2),
-      Materialized
-        .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
+      CirceSerdes.materializedForCirce[K1, Z]
     )
 
   def leftJoinComposite[K1: Encoder: Decoder, K2, V1, V2, Z: Encoder: Decoder](
@@ -64,8 +60,7 @@ object JoinTables {
       (v1: V1) =>
         DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1))),
       (v1, v2) => g(v1, v2),
-      Materialized
-        .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
+      CirceSerdes.materializedForCirce[K1, Z]
     )
 
   def leftJoinOptionComposite[K1: Encoder: Decoder, K2, V1, V2, Z: Encoder: Decoder](
@@ -85,8 +80,7 @@ object JoinTables {
           )
           .orNull,
       (v1, v2) => g(v1, v2),
-      Materialized
-        .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
+      CirceSerdes.materializedForCirce[K1, Z]
     )
 
   def join[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
@@ -101,8 +95,7 @@ object JoinTables {
       b,
       (v1: V1) => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName)),
       (v1, v2) => g(v1, v2),
-      Materialized
-        .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
+      CirceSerdes.materializedForCirce[K1, Z]
     )
 
   def joinOption[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
@@ -120,8 +113,7 @@ object JoinTables {
           .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
           .orNull,
       (v1, v2) => g(v1, v2),
-      Materialized
-        .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
+      CirceSerdes.materializedForCirce[K1, Z]
     )
 
   def leftJoin[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
@@ -136,8 +128,7 @@ object JoinTables {
       b,
       (v1: V1) => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName)),
       (v1, v2) => g(v1, v2),
-      Materialized
-        .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
+      CirceSerdes.materializedForCirce[K1, Z]
     )
 
   def leftJoinOption[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
@@ -155,8 +146,7 @@ object JoinTables {
           .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
           .orNull,
       (v1, v2) => g(v1, v2),
-      Materialized
-        .`with`[K1, Z, KeyValueStore[Bytes, Array[Byte]]](CirceSerdes.serdeForCirce[K1], CirceSerdes.serdeForCirce[Z])
+      CirceSerdes.materializedForCirce[K1, Z]
     )
 
   private[kafkastreams4s] def replicateCompositeKeySchema[A](

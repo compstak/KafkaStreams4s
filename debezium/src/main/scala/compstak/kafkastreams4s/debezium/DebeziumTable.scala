@@ -1,9 +1,9 @@
 package compstak.kafkastreams4s.debezium
 
-import org.apache.kafka.streams.StreamsBuilder
-import org.apache.kafka.streams.kstream.{Consumed, KTable, Produced}
+import org.apache.kafka.streams.{KeyValue, StreamsBuilder}
+import org.apache.kafka.streams.kstream.{Consumed, Initializer, KTable, Produced, ValueMapper, ValueMapperWithKey}
 import org.apache.kafka.common.serialization.Serde
-import compstak.kafkastreams4s.circe.CirceSerdes
+import compstak.kafkastreams4s.circe.CirceSerdes._
 import compstak.circe.debezium.{DebeziumKey, DebeziumValue}
 import io.circe.{Decoder, Encoder}
 import cats.{Functor, FunctorFilter}
@@ -19,25 +19,39 @@ case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
     Sync[F].delay(
       toKTable.toStream.to(
         outputTopicName,
-        Produced
-          .`with`(CirceSerdes.serdeForCirce[DebeziumKey[K]], CirceSerdes.serdeForCirce[V])
+        producedForCirce[DebeziumKey[K], V]
       )
     )
 
   def map[V2: Encoder: Decoder](f: V => V2): DebeziumTable[K, V2] =
-    copy(toKTable = toKTable.mapValues(v => f(v)))
+    copy(toKTable = toKTable.mapValues(((v: V) => f(v)): ValueMapper[V, V2], materializedForCirce[DebeziumKey[K], V2]))
 
   def mapWithKey[V2: Encoder: Decoder](f: (DebeziumKey[K], V) => V2): DebeziumTable[K, V2] =
-    copy(toKTable = toKTable.mapValues((k, v) => f(k, v)))
+    copy(toKTable = toKTable.mapValues(
+      ((k: DebeziumKey[K], v: V) => f(k, v)): ValueMapperWithKey[DebeziumKey[K], V, V2],
+      materializedForCirce[DebeziumKey[K], V2]
+    )
+    )
 
   def mapFilter[V2: Encoder: Decoder](f: V => Option[V2]): DebeziumTable[K, V2] = {
-    val mapped: KTable[DebeziumKey[K], Option[V2]] = toKTable.mapValues(v => f(v))
-    copy(toKTable = mapped.filter((k, o) => o.isDefined).mapValues(_.get))
+    val mapped: KTable[DebeziumKey[K], Option[V2]] =
+      toKTable.mapValues(((v: V) => f(v)): ValueMapper[V, Option[V2]], materializedForCirce[DebeziumKey[K], Option[V2]])
+    copy(toKTable = mapped
+      .filter((k, o) => o.isDefined)
+      .mapValues(((ov: Option[V2]) => ov.get): ValueMapper[Option[V2], V2], materializedForCirce[DebeziumKey[K], V2])
+    )
   }
 
   def mapFilterWithKey[V2: Encoder: Decoder](f: (DebeziumKey[K], V) => Option[V2]): DebeziumTable[K, V2] = {
-    val mapped: KTable[DebeziumKey[K], Option[V2]] = toKTable.mapValues((k, v) => f(k, v))
-    copy(toKTable = mapped.filter((k, o) => o.isDefined).mapValues(_.get))
+    val mapped: KTable[DebeziumKey[K], Option[V2]] =
+      toKTable.mapValues(
+        ((k: DebeziumKey[K], v: V) => f(k, v)): ValueMapperWithKey[DebeziumKey[K], V, Option[V2]],
+        materializedForCirce[DebeziumKey[K], Option[V2]]
+      )
+    copy(toKTable = mapped
+      .filter((k, o) => o.isDefined)
+      .mapValues(((ov: Option[V2]) => ov.get): ValueMapper[Option[V2], V2], materializedForCirce[DebeziumKey[K], V2])
+    )
   }
 
   def join[K2: DebeziumPrimitiveType, V2, Z: Encoder: Decoder](
@@ -84,19 +98,21 @@ object DebeziumTable {
     sb: StreamsBuilder,
     topicName: String,
     idName: String
-  ): DebeziumTable[K, DebeziumValue[V]] = {
-    val keySerde = CirceSerdes.serdeForCirce[DebeziumKey[K]]
-    val valueSerde = CirceSerdes.serdeForCirce[DebeziumValue[V]]
-    DebeziumTable(topicName, Left(idName), sb.table(topicName, Consumed.`with`(keySerde, valueSerde)))
-  }
+  ): DebeziumTable[K, DebeziumValue[V]] =
+    DebeziumTable(
+      topicName,
+      Left(idName),
+      sb.table(topicName, consumedForCirce[DebeziumKey[K], DebeziumValue[V]])
+    )
 
   def withCompositeKey[K: Encoder: Decoder, V: Encoder: Decoder](
     sb: StreamsBuilder,
     topicName: String,
     schema: DebeziumCompositeType[K]
-  ): DebeziumTable[K, DebeziumValue[V]] = {
-    val keySerde = CirceSerdes.serdeForCirce[DebeziumKey[K]]
-    val valueSerde = CirceSerdes.serdeForCirce[DebeziumValue[V]]
-    DebeziumTable(topicName, Right(schema), sb.table(topicName, Consumed.`with`(keySerde, valueSerde)))
-  }
+  ): DebeziumTable[K, DebeziumValue[V]] =
+    DebeziumTable(
+      topicName,
+      Right(schema),
+      sb.table(topicName, consumedForCirce[DebeziumKey[K], DebeziumValue[V]])
+    )
 }
