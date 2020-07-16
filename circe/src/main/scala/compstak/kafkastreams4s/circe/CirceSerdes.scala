@@ -12,6 +12,9 @@ import org.apache.kafka.common.serialization.{
   StringDeserializer,
   StringSerializer
 }
+import org.apache.kafka.streams.kstream.{Consumed, Grouped, Materialized, Produced}
+import org.apache.kafka.streams.state.KeyValueStore
+import org.apache.kafka.common.utils.Bytes
 import compstak.kafkastreams4s.SerdeHelpers
 import compstak.kafkastreams4s.implicits._
 
@@ -28,4 +31,18 @@ object CirceSerdes {
 
   def serdeForCirce[A: Encoder: Decoder]: Serde[A] =
     Serdes.serdeFrom(serializerForCirce, deserializerForCirce)
+
+  def producedForCirce[K: Encoder: Decoder, V: Encoder: Decoder]: Produced[K, V] =
+    Produced.`with`(serdeForCirce[K], serdeForCirce[V])
+
+  def materializedForCirce[K: Encoder: Decoder, V: Encoder: Decoder]
+    : Materialized[K, V, KeyValueStore[Bytes, Array[Byte]]] =
+    Materialized
+      .`with`(serdeForCirce[K], serdeForCirce[V])
+
+  def consumedForCirce[K: Encoder: Decoder, V: Encoder: Decoder]: Consumed[K, V] =
+    Consumed.`with`(serdeForCirce[K], serdeForCirce[V])
+
+  def groupedForCirce[K: Encoder: Decoder, V: Encoder: Decoder]: Grouped[K, V] =
+    Grouped.`with`(serdeForCirce[K], serdeForCirce[V])
 }
