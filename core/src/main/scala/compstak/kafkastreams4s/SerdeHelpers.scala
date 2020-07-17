@@ -2,8 +2,11 @@ package compstak.kafkastreams4s
 
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
 import org.apache.kafka.common.header.Headers
-import java.{util => ju}
 import compstak.kafkastreams4s.implicits._
+import org.apache.kafka.streams.kstream.{Consumed, Grouped, Materialized, Produced}
+import org.apache.kafka.streams.state.KeyValueStore
+import org.apache.kafka.common.utils.Bytes
+import java.{util => ju}
 
 object SerdeHelpers {
 
@@ -21,4 +24,18 @@ object SerdeHelpers {
 
     Serdes.serdeFrom(serializerB, deserializerB)
   }
+
+  def producedForCodec[C[x] <: Codec[x], K: C, V: C]: Produced[K, V] =
+    Produced.`with`[K, V](Codec[K].serde, Codec[V].serde)
+
+  def materializedForCodec[C[x] <: Codec[x], K: C, V: C]: Materialized[K, V, KeyValueStore[Bytes, Array[Byte]]] =
+    Materialized
+      .`with`(Codec[K].serde, Codec[V].serde)
+
+  def consumedForCodec[C[x] <: Codec[x], K: C, V: C]: Consumed[K, V] =
+    Consumed.`with`(Codec[K].serde, Codec[V].serde)
+
+  def groupedForCodec[C[x] <: Codec[x], K: C, V: C]: Grouped[K, V] =
+    Grouped.`with`(Codec[K].serde, Codec[V].serde)
+
 }
