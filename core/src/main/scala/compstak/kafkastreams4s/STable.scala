@@ -5,6 +5,9 @@ import org.apache.kafka.streams.{KeyValue, StreamsBuilder}
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream.{KTable, ValueMapper, ValueMapperWithKey}
 import SerdeHelpers._
+import org.apache.kafka.streams.kstream.KeyValueMapper
+import org.apache.kafka.streams.kstream.Initializer
+import org.apache.kafka.streams.kstream.Aggregator
 
 class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, V]) {
   import STable.fromKTable
@@ -20,11 +23,14 @@ class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, 
   def keyBy[K2: C](f: V => K2): STable[C, K2, V] =
     fromKTable(
       toKTable
-        .groupBy((k: K, v: V) => KeyValue.pair(f(v), v), groupedForCodec[C, K2, V])
+        .groupBy(
+          ((k: K, v: V) => KeyValue.pair(f(v), v)): KeyValueMapper[K, V, KeyValue[K2, V]],
+          groupedForCodec[C, K2, V]
+        )
         .aggregate[Option[V]](
-          () => Option.empty[V],
-          (k: K2, v: V, agg: Option[V]) => Option(v),
-          (k: K2, v: V, agg: Option[V]) => agg,
+          (() => Option.empty[V]): Initializer[Option[V]],
+          ((k: K2, v: V, agg: Option[V]) => Option(v)): Aggregator[K2, V, Option[V]],
+          ((k: K2, v: V, agg: Option[V]) => agg): Aggregator[K2, V, Option[V]],
           materializedForCodec[C, K2, Option[V]]
         )
     ).flattenOption
@@ -32,11 +38,14 @@ class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, 
   def reKey[K2: C](f: K => K2): STable[C, K2, V] =
     fromKTable(
       toKTable
-        .groupBy((k: K, v: V) => KeyValue.pair(f(k), v), groupedForCodec[C, K2, V])
+        .groupBy(
+          ((k: K, v: V) => KeyValue.pair(f(k), v)): KeyValueMapper[K, V, KeyValue[K2, V]],
+          groupedForCodec[C, K2, V]
+        )
         .aggregate[Option[V]](
-          () => Option.empty[V],
-          (k: K2, v: V, agg: Option[V]) => Option(v),
-          (k: K2, v: V, agg: Option[V]) => agg,
+          (() => Option.empty[V]): Initializer[Option[V]],
+          ((k: K2, v: V, agg: Option[V]) => Option(v)): Aggregator[K2, V, Option[V]],
+          ((k: K2, v: V, agg: Option[V]) => agg): Aggregator[K2, V, Option[V]],
           materializedForCodec[C, K2, Option[V]]
         )
     ).flattenOption
@@ -47,11 +56,11 @@ class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, 
         .groupBy({ (k: K, v: V) =>
           val (k2, v2) = f(k, v)
           KeyValue.pair(k2, v2)
-        }, groupedForCodec[C, K2, V2])
+        }: KeyValueMapper[K, V, KeyValue[K2, V2]], groupedForCodec[C, K2, V2])
         .aggregate[Option[V2]](
-          () => Option.empty[V2],
-          (k: K2, v: V2, agg: Option[V2]) => Option(v),
-          (k: K2, v: V2, agg: Option[V2]) => agg,
+          (() => Option.empty[V2]): Initializer[Option[V2]],
+          ((k: K2, v: V2, agg: Option[V2]) => Option(v)): Aggregator[K2, V2, Option[V2]],
+          ((k: K2, v: V2, agg: Option[V2]) => agg): Aggregator[K2, V2, Option[V2]],
           materializedForCodec[C, K2, Option[V2]]
         )
     ).flattenOption
@@ -86,11 +95,11 @@ class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, 
   def scan[V2: C](z: => V2)(f: (V2, V) => V2): STable[C, K, V2] =
     fromKTable(
       toKTable
-        .groupBy((k: K, v: V) => KeyValue.pair(k, v), groupedForCodec[C, K, V])
+        .groupBy(((k: K, v: V) => KeyValue.pair(k, v)): KeyValueMapper[K, V, KeyValue[K, V]], groupedForCodec[C, K, V])
         .aggregate[V2](
-          () => z,
-          (k: K, v: V, agg: V2) => f(agg, v),
-          (k: K, v: V, agg: V2) => agg,
+          (() => z): Initializer[V2],
+          ((k: K, v: V, agg: V2) => f(agg, v)): Aggregator[K, V, V2],
+          ((k: K, v: V, agg: V2) => agg): Aggregator[K, V, V2],
           materializedForCodec[C, K, V2]
         )
     )
@@ -98,11 +107,11 @@ class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, 
   def scan1(f: (V, V) => V): STable[C, K, V] =
     fromKTable(
       toKTable
-        .groupBy((k: K, v: V) => KeyValue.pair(k, v), groupedForCodec[C, K, V])
+        .groupBy(((k: K, v: V) => KeyValue.pair(k, v)): KeyValueMapper[K, V, KeyValue[K, V]], groupedForCodec[C, K, V])
         .aggregate[Option[V]](
-          () => None,
-          (k: K, v: V, agg: Option[V]) => Some(agg.fold(v)(acc => f(acc, v))),
-          (k: K, v: V, agg: Option[V]) => agg,
+          (() => None): Initializer[Option[V]],
+          ((k: K, v: V, agg: Option[V]) => Some(agg.fold(v)(acc => f(acc, v)))): Aggregator[K, V, Option[V]],
+          ((k: K, v: V, agg: Option[V]) => agg): Aggregator[K, V, Option[V]],
           materializedForCodec[C, K, Option[V]]
         )
     ).flattenOption
