@@ -9,6 +9,9 @@ import org.apache.kafka.streams.kstream.KeyValueMapper
 import org.apache.kafka.streams.kstream.Initializer
 import org.apache.kafka.streams.kstream.Aggregator
 
+/**
+ * A Kafka Streams KTable wrapper that abstracts over the codecs used in KTable operations.
+ */
 class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, V]) {
   import STable.fromKTable
 
@@ -159,6 +162,20 @@ class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, 
 
   def collect[V2: C](f: PartialFunction[V, V2]): STable[C, K, V2] =
     mapFilter(f.lift)
+
+  def mapCodec[C2[x] <: Codec[x]: CodecOption](implicit K: C2[K], V: C2[V]): STable[C2, K, V] = {
+    implicit def c2Option[A: C2]: C2[Option[A]] = CodecOption[C2].optionCodec[A]
+    fromKTable[C2, K, Option[V]](
+      toKTable
+        .groupBy(KeyValue.pair: KeyValueMapper[K, V, KeyValue[K, V]], groupedForCodec[C2, K, V])
+        .aggregate[Option[V]](
+          (() => Option.empty[V]): Initializer[Option[V]],
+          ((k: K, v: V, agg: Option[V]) => Option(v)): Aggregator[K, V, Option[V]],
+          ((k: K, v: V, agg: Option[V]) => agg): Aggregator[K, V, Option[V]],
+          materializedForCodec[C2, K, Option[V]]
+        )
+    ).flattenOption
+  }
 }
 
 object STable {

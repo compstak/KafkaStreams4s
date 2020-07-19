@@ -27,6 +27,7 @@ inThisBuild(
 
 enablePlugins(DockerComposePlugin)
 
+val Avro4sVersion = "3.1.1"
 val CatsEffectVersion = "2.1.3"
 val CirceVersion = "0.13.0"
 val CirceDebeziumVersion = "0.12.0"
@@ -83,6 +84,17 @@ lazy val circe = (project in file("circe"))
   )
   .dependsOn(core)
 
+lazy val avro4s = (project in file("avro"))
+  .settings(commonSettings)
+  .settings(
+    name := "kafka-streams4s-avro4s",
+    libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams" % KafkaVersion,
+      "com.sksamuel.avro4s" %% "avro4s-kafka" % Avro4sVersion
+    )
+  )
+  .dependsOn(core)
+
 lazy val debezium = (project in file("debezium"))
   .settings(commonSettings)
   .settings(
@@ -101,9 +113,9 @@ lazy val tests = (project in file("tests"))
   .settings(
     name := "kafka-streams4s-tests",
     libraryDependencies ++= Seq(
+      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion,
       "org.scalameta" %% "munit" % MunitVersion % Test,
       "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
-      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion % IntegrationTest,
       "io.circe" %% "circe-literal" % CirceVersion % IntegrationTest,
       "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
       "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest,
@@ -119,5 +131,5 @@ lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(name := "kafka-streams4s")
-  .dependsOn(core, circe, debezium, tests)
-  .aggregate(core, circe, debezium, tests)
+  .dependsOn(core, circe, debezium, avro4s, tests)
+  .aggregate(core, circe, debezium, avro4s, tests)

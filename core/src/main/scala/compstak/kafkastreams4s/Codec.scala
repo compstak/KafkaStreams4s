@@ -2,6 +2,9 @@ package compstak.kafkastreams4s
 
 import org.apache.kafka.common.serialization.Serde
 
+/**
+ * A generic codec for serializing and deserializing an `A` in Kafka using a `Serde`
+ */
 trait Codec[A] {
   def serde: Serde[A]
 }

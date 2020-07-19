@@ -9,8 +9,6 @@ trait CirceCodec[A] extends compstak.kafkastreams4s.Codec[A] {
   implicit def decoder: Decoder[A]
 
   def serde: Serde[A] = CirceSerdes.serdeForCirce[A]
-
-  def optionSerde: Serde[Option[A]] = CirceSerdes.serdeForCirce[Option[A]]
 }
 
 object CirceCodec {
