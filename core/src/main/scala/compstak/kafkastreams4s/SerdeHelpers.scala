@@ -25,17 +25,16 @@ object SerdeHelpers {
     Serdes.serdeFrom(serializerB, deserializerB)
   }
 
-  def producedForCodec[C[x] <: Codec[x], K: C, V: C]: Produced[K, V] =
-    Produced.`with`[K, V](Codec[K].serde, Codec[V].serde)
+  def producedForCodec[C[_]: Codec, K: C, V: C]: Produced[K, V] =
+    Produced.`with`[K, V](Codec[C].serde[K], Codec[C].serde[V])
 
-  def materializedForCodec[C[x] <: Codec[x], K: C, V: C]: Materialized[K, V, KeyValueStore[Bytes, Array[Byte]]] =
-    Materialized
-      .`with`(Codec[K].serde, Codec[V].serde)
+  def materializedForCodec[C[_]: Codec, K: C, V: C]: Materialized[K, V, KeyValueStore[Bytes, Array[Byte]]] =
+    Materialized.`with`(Codec[C].serde[K], Codec[C].serde[V])
 
-  def consumedForCodec[C[x] <: Codec[x], K: C, V: C]: Consumed[K, V] =
-    Consumed.`with`(Codec[K].serde, Codec[V].serde)
+  def consumedForCodec[C[_]: Codec, K: C, V: C]: Consumed[K, V] =
+    Consumed.`with`(Codec[C].serde[K], Codec[C].serde[V])
 
-  def groupedForCodec[C[x] <: Codec[x], K: C, V: C]: Grouped[K, V] =
-    Grouped.`with`(Codec[K].serde, Codec[V].serde)
+  def groupedForCodec[C[_]: Codec, K: C, V: C]: Grouped[K, V] =
+    Grouped.`with`(Codec[C].serde[K], Codec[C].serde[V])
 
 }

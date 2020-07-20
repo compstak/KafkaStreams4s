@@ -8,12 +8,14 @@ import SerdeHelpers._
 import org.apache.kafka.streams.kstream.KeyValueMapper
 import org.apache.kafka.streams.kstream.Initializer
 import org.apache.kafka.streams.kstream.Aggregator
+import cats.arrow.FunctionK
+import org.apache.kafka.streams.kstream.Predicate
 
 /**
  * A Kafka Streams KTable wrapper that abstracts over the codecs used in KTable operations.
  */
-class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, V]) {
-  import STable.fromKTable
+class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
+  import STable.{fromKTable, optionCodec}
 
   def to[F[_]: Sync](outputTopicName: String): F[Unit] =
     Sync[F].delay(
@@ -156,15 +158,15 @@ class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, 
   def flattenOption[V2: C](implicit ev: V =:= Option[V2]): STable[C, K, V2] =
     fromKTable(
       toKTable
-        .filter((k, v) => ev(v).isDefined)
+        .filter(((k: K, v: V) => ev(v).isDefined): Predicate[K, V], materializedForCodec[C, K, V])
         .mapValues(((v: V) => ev(v).get): ValueMapper[V, V2], materializedForCodec[C, K, V2])
     )
 
   def collect[V2: C](f: PartialFunction[V, V2]): STable[C, K, V2] =
     mapFilter(f.lift)
 
-  def mapCodec[C2[x] <: Codec[x]: CodecOption](implicit K: C2[K], V: C2[V]): STable[C2, K, V] = {
-    implicit def c2Option[A: C2]: C2[Option[A]] = CodecOption[C2].optionCodec[A]
+  def mapCodec[C2[_]: Codec](implicit K: C2[K], V: C2[V]): STable[C2, K, V] = {
+    implicit def c2Option[A: C2]: C2[Option[A]] = Codec.codecForOption[C2, A]
     fromKTable[C2, K, Option[V]](
       toKTable
         .groupBy(KeyValue.pair: KeyValueMapper[K, V, KeyValue[K, V]], groupedForCodec[C2, K, V])
@@ -179,17 +181,19 @@ class STable[C[x] <: Codec[x]: CodecOption, K: C, V: C](val toKTable: KTable[K, 
 }
 
 object STable {
+  implicit def optionCodec[C[_]: Codec, A: C]: C[Option[A]] =
+    Codec.codecForOption
 
-  def fromKTable[C[x] <: Codec[x]: CodecOption, K: C, V: C](ktable: KTable[K, V]): STable[C, K, V] =
+  def fromKTable[C[_]: Codec, K: C, V: C](ktable: KTable[K, V]): STable[C, K, V] =
     new STable[C, K, V](ktable)
 
-  def apply[C[x] <: Codec[x]: CodecOption, K: C, V: C](sb: StreamsBuilder, topicName: String): STable[C, K, V] =
+  def apply[C[_]: Codec, K: C, V: C](sb: StreamsBuilder, topicName: String): STable[C, K, V] =
     fromKTable(sb.table(topicName, consumedForCodec[C, K, V]))
 
   /**
    * Like `STable.apply`, but filters out `null` values.
    */
-  def withLogCompaction[C[x] <: Codec[x]: CodecOption, K: C, V: C](
+  def withLogCompaction[C[_]: Codec, K: C, V: C](
     sb: StreamsBuilder,
     topicName: String
   ): STable[C, K, V] =

@@ -106,13 +106,14 @@ lazy val debezium = (project in file("debezium"))
   )
   .dependsOn(circe)
 
-lazy val tests = (project in file("tests"))
+lazy val testing = (project in file("testing"))
   .configs(IntegrationTest)
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(
     name := "kafka-streams4s-tests",
     libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams-test-utils" % KafkaVersion,
       "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion,
       "org.scalameta" %% "munit" % MunitVersion % Test,
       "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
@@ -125,11 +126,11 @@ lazy val tests = (project in file("tests"))
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
   )
-  .dependsOn(core, circe, debezium)
+  .dependsOn(core, circe, avro4s, debezium)
 
 lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(name := "kafka-streams4s")
-  .dependsOn(core, circe, debezium, avro4s, tests)
-  .aggregate(core, circe, debezium, avro4s, tests)
+  .dependsOn(core, circe, debezium, avro4s, testing)
+  .aggregate(core, circe, debezium, avro4s, testing)

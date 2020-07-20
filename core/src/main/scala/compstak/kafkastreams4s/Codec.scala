@@ -3,15 +3,16 @@ package compstak.kafkastreams4s
 import org.apache.kafka.common.serialization.Serde
 
 /**
- * A generic codec for serializing and deserializing an `A` in Kafka using a `Serde`
+ * A typeclass for codecs that can serialize and deserialize any `A` in Kafka using a `Serde`s
  */
-trait Codec[A] {
-  def serde: Serde[A]
+trait Codec[C[_]] {
+  def serde[A: C]: Serde[A]
+  def optionSerde[A: C]: C[Option[A]]
 }
 
 object Codec {
-  def apply[A: Codec]: Codec[A] = implicitly
+  def apply[C[_]: Codec]: Codec[C] = implicitly
 
-  implicit def codecForOption[C[x] <: Codec[x], A](implicit C: CodecOption[C], A: C[A]): C[Option[A]] =
-    C.optionCodec
+  def codecForOption[C[_]: Codec, A: C]: C[Option[A]] =
+    apply[C].optionSerde[A]
 }

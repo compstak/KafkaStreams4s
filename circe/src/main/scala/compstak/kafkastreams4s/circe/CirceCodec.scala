@@ -2,9 +2,9 @@ package compstak.kafkastreams4s.circe
 
 import org.apache.kafka.common.serialization.Serde
 import io.circe.{Decoder, Encoder}
-import compstak.kafkastreams4s.CodecOption
+import compstak.kafkastreams4s.Codec
 
-trait CirceCodec[A] extends compstak.kafkastreams4s.Codec[A] {
+trait CirceCodec[A] {
   implicit def encoder: Encoder[A]
   implicit def decoder: Decoder[A]
 
@@ -12,11 +12,13 @@ trait CirceCodec[A] extends compstak.kafkastreams4s.Codec[A] {
 }
 
 object CirceCodec {
-  implicit val codecOptionCirceCodec: CodecOption[CirceCodec] = new CodecOption[CirceCodec] {
-    def optionCodec[A](implicit ev: CirceCodec[A]): CirceCodec[Option[A]] = new CirceCodec[Option[A]] {
+  def apply[A: CirceCodec]: CirceCodec[A] = implicitly
+
+  implicit def ccCirceCodec: Codec[CirceCodec] = new Codec[CirceCodec] {
+    def serde[A: CirceCodec]: Serde[A] = apply[A].serde
+    def optionSerde[A](implicit ev: CirceCodec[A]): CirceCodec[Option[A]] = new CirceCodec[Option[A]] {
       implicit def encoder: Encoder[Option[A]] = Encoder.encodeOption(ev.encoder)
       implicit def decoder: Decoder[Option[A]] = Decoder.decodeOption(ev.decoder)
-
     }
   }
 

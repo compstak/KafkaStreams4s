@@ -1,16 +1,15 @@
 package compstak.kafkastream4s.avro4s
 
-import compstak.kafkastreams4s.Codec
 import org.apache.kafka.common.serialization.Serde
-import compstak.kafkastreams4s.CodecOption
 import com.sksamuel.avro4s.kafka.GenericSerde
 import com.sksamuel.avro4s.SchemaFor
 import com.sksamuel.avro4s.Encoder
 import com.sksamuel.avro4s.Decoder
 import shapeless.Generic
 import compstak.kafkastreams4s.avro4s.Avro4sSerdes
+import compstak.kafkastreams4s.Codec
 
-trait Avro4sCodec[A] extends Codec[A] {
+trait Avro4sCodec[A] {
   def schema: SchemaFor[A]
   def encoder: Encoder[A]
   def decoder: Decoder[A]
@@ -27,11 +26,12 @@ trait Avro4sCodec[A] extends Codec[A] {
 }
 
 object Avro4sCodec {
-
   def apply[A: Avro4sCodec]: Avro4sCodec[A] = implicitly
 
-  implicit val avro4sCodecOption: CodecOption[Avro4sCodec] = new CodecOption[Avro4sCodec] {
-    def optionCodec[A: Avro4sCodec]: Avro4sCodec[Option[A]] = new Avro4sCodec[Option[A]] {
+  implicit val avro4sCodecOption: Codec[Avro4sCodec] = new Codec[Avro4sCodec] {
+    def serde[A: Avro4sCodec]: Serde[A] = apply[A].serde
+
+    def optionSerde[A: Avro4sCodec]: Avro4sCodec[Option[A]] = new Avro4sCodec[Option[A]] {
       def schema: SchemaFor[Option[A]] = SchemaFor.optionSchemaFor[A](apply[A].schema)
       def encoder: Encoder[Option[A]] = Encoder.optionEncoder[A](apply[A].encoder)
       def decoder: Decoder[Option[A]] = Decoder.optionDecoder[A](apply[A].decoder)
