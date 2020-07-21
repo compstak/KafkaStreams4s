@@ -115,7 +115,7 @@ lazy val shapeless = (project in file("shapeless"))
       "com.chuusai" %% "shapeless" % ShapelessVersion,
       "org.scalatest" %% "scalatest" % "3.2.0" % "test",
       "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % "test",
-      "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.3" % "test"
+      "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5" % "test"
     )
   )
   .dependsOn(debezium)
