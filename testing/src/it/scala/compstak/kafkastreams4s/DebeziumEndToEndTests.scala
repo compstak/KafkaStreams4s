@@ -27,7 +27,7 @@ import java.{util => ju}
 import org.apache.kafka.common.serialization.Serdes
 import cats.effect.ExitCode
 
-class EndToEndTests extends munit.FunSuite {
+class DebeziumEndToEndTests extends munit.FunSuite {
 
   override val munitTimeout = 3.minutes
 

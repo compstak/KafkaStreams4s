@@ -27,6 +27,7 @@ inThisBuild(
 
 enablePlugins(DockerComposePlugin)
 
+val Avro4sVersion = "3.1.1"
 val CatsEffectVersion = "2.1.3"
 val CirceVersion = "0.13.0"
 val CirceDebeziumVersion = "0.12.0"
@@ -84,6 +85,17 @@ lazy val circe = (project in file("circe"))
   )
   .dependsOn(core)
 
+lazy val avro4s = (project in file("avro"))
+  .settings(commonSettings)
+  .settings(
+    name := "kafka-streams4s-avro4s",
+    libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams" % KafkaVersion,
+      "com.sksamuel.avro4s" %% "avro4s-kafka" % Avro4sVersion
+    )
+  )
+  .dependsOn(core)
+
 lazy val debezium = (project in file("debezium"))
   .settings(commonSettings)
   .settings(
@@ -108,16 +120,17 @@ lazy val shapeless = (project in file("shapeless"))
   )
   .dependsOn(debezium)
 
-lazy val tests = (project in file("tests"))
+lazy val testing = (project in file("testing"))
   .configs(IntegrationTest)
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(
     name := "kafka-streams4s-tests",
     libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams-test-utils" % KafkaVersion,
+      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion,
       "org.scalameta" %% "munit" % MunitVersion % Test,
       "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
-      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion % IntegrationTest,
       "io.circe" %% "circe-literal" % CirceVersion % IntegrationTest,
       "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
       "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest,
@@ -127,11 +140,11 @@ lazy val tests = (project in file("tests"))
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
   )
-  .dependsOn(core, circe, debezium)
+  .dependsOn(core, circe, avro4s, debezium)
 
 lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(name := "kafka-streams4s")
-  .dependsOn(core, circe, debezium, shapeless, tests)
-  .aggregate(core, circe, debezium, shapeless, tests)
+  .dependsOn(core, circe, debezium, avro4s, shapeless, testing)
+  .aggregate(core, circe, debezium, avro4s, shapeless, testing)
