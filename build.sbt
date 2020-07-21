@@ -36,6 +36,7 @@ val Http4sVersion = "0.21.6"
 val KafkaVersion = "2.5.0"
 val KafkaConnectHttp4sVersion = "0.5.0"
 val MunitVersion = "0.7.9"
+val ShapelessVersion = "2.3.3"
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -94,6 +95,19 @@ lazy val debezium = (project in file("debezium"))
   )
   .dependsOn(circe)
 
+lazy val shapeless = (project in file("shapeless"))
+  .settings(commonSettings)
+  .settings(
+    name := "kafka-streams4s-shapeless",
+    libraryDependencies ++= Seq(
+      "com.chuusai"                %% "shapeless"                 % ShapelessVersion,
+      "org.scalatest"              %% "scalatest"                 % "3.2.0"   % "test",
+      "org.scalatestplus"          %% "scalacheck-1-14"           % "3.2.0.0" % "test",
+      "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.3"   % "test"
+    )
+  )
+  .dependsOn(debezium)
+
 lazy val tests = (project in file("tests"))
   .configs(IntegrationTest)
   .settings(commonSettings)
@@ -119,5 +133,5 @@ lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(name := "kafka-streams4s")
-  .dependsOn(core, circe, debezium, tests)
-  .aggregate(core, circe, debezium, tests)
+  .dependsOn(core, circe, debezium, shapeless, tests)
+  .aggregate(core, circe, debezium, shapeless, tests)
