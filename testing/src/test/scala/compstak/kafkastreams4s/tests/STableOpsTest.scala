@@ -8,6 +8,7 @@ import cats.implicits._
 import compstak.kafkastreams4s.circe.CirceCodec
 import scala.concurrent.duration._
 import compstak.kafkastreams4s.testing.KafkaStreamsTestRunner
+import scala.util.Try
 
 class STableOpsTest extends munit.FunSuite {
 
@@ -29,7 +30,7 @@ class STableOpsTest extends munit.FunSuite {
       .unsafeToFuture()
   }
 
-  test("STable reKey should work as expected") {
+  test("STable transform should work as expected") {
     val input = List("foo" -> 1, "barr" -> 2, "bazzz" -> 3, "quxxxx" -> 4)
 
     KafkaStreamsTestRunner
@@ -43,7 +44,7 @@ class STableOpsTest extends munit.FunSuite {
 
     KafkaStreamsTestRunner
       .runList[IO, CirceCodec, String, Int](_.scan(0)((acc, cur) => acc + cur.length), input: _*)
-      .map(out => assert(Set(3, 7, 12, 18).subsetOf(out.toSet)))
+      .map(out => assertEquals(Set(3, 7, 12, 18), out.toSet))
       .unsafeToFuture()
   }
 
@@ -52,7 +53,7 @@ class STableOpsTest extends munit.FunSuite {
 
     KafkaStreamsTestRunner
       .runList[IO, CirceCodec, Int, Int](_.scan1(_ + _), input: _*)
-      .map(out => assert(Set(1, 3, 6, 10).subsetOf(out.toSet)))
+      .map(out => assertEquals(Set(1, 3, 6, 10), out.toSet))
       .unsafeToFuture()
   }
 
@@ -73,25 +74,44 @@ class STableOpsTest extends munit.FunSuite {
       .map(out => assertEquals(out, List(2, 3, 4, 5)))
       .unsafeToFuture()
   }
-  /* TODO FIX ME
+
   test("STable mapFilter should work as expected") {
     val input = List("1", "2", "three", "3")
 
     KafkaStreamsTestRunner
-      .runList[IO, CirceCodec, String, Int](_.mapFilter(_.toIntOption), input: _*)
+      .runList[IO, CirceCodec, String, Int](_.mapFilter(s => Try(s.toInt).toOption), input: _*)
       .map(out => assertEquals(out, List(1, 2, 3)))
       .unsafeToFuture()
   }
 
+  test("STable mapFilterWithKey should work as expected") {
+    val input = List(1 -> "1", 2 -> "2", 3 -> "three", 4 -> "3")
+
+    KafkaStreamsTestRunner
+      .run[IO, CirceCodec, Int, String, Int, Int](
+        _.mapFilterWithKey((k, v) => Try(v.toInt).toOption.filter(_ == k)),
+        input: _*
+      )
+      .map(out => assertEquals(out, Map(1 -> 1, 2 -> 2)))
+      .unsafeToFuture()
+  }
 
   test("STable flattenOption should work as expected") {
     val input = List(Option("foo"), None, Option("bar"))
 
     KafkaStreamsTestRunner
-      .run[IO, CirceCodec, Option[String], String](_.flattenOption, input: _*)
+      .runList[IO, CirceCodec, Option[String], String](_.collect { case Some(s) => s }, input: _*)
       .map(out => assertEquals(out, List("foo", "bar")))
       .unsafeToFuture()
   }
- */
+
+  test("STable flattenOption should work as expected") {
+    val input = List(Option("foo"), None, Option("bar"))
+
+    KafkaStreamsTestRunner
+      .runList[IO, CirceCodec, Option[String], String](_.flattenOption, input: _*)
+      .map(out => assertEquals(out, List("foo", "bar")))
+      .unsafeToFuture()
+  }
 
 }

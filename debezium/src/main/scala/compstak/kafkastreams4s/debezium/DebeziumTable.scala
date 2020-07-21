@@ -87,7 +87,7 @@ object DebeziumTable {
     DebeziumTable(
       topicName,
       Left(idName),
-      CirceTable.withLogCompaction[DebeziumKey[K], DebeziumValue[V]](sb, topicName)
+      CirceTable[DebeziumKey[K], DebeziumValue[V]](sb, topicName)
     )
 
   def withCompositeKey[K: Encoder: Decoder, V: Encoder: Decoder](
@@ -98,6 +98,6 @@ object DebeziumTable {
     DebeziumTable(
       topicName,
       Right(schema),
-      CirceTable.withLogCompaction[DebeziumKey[K], DebeziumValue[V]](sb, topicName)
+      CirceTable[DebeziumKey[K], DebeziumValue[V]](sb, topicName)
     )
 }

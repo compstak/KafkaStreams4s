@@ -17,14 +17,5 @@ package object circe {
     def apply[K: Encoder: Decoder, V: Encoder: Decoder](sb: StreamsBuilder, topicName: String): CirceTable[K, V] =
       fromKTable(sb.table(topicName, CirceSerdes.consumedForCirce[K, V]))
 
-    /**
-     * Like `CirceTable.apply`, but filters out `null` values.
-     */
-    def withLogCompaction[K: Encoder: Decoder, V: Encoder: Decoder](
-      sb: StreamsBuilder,
-      topicName: String
-    ): CirceTable[K, V] =
-      CirceTable[K, Option[V]](sb, topicName).flattenOption
-
   }
 }

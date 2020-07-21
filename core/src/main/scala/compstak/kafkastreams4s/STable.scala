@@ -3,13 +3,8 @@ package compstak.kafkastreams4s
 import cats.effect.Sync
 import org.apache.kafka.streams.{KeyValue, StreamsBuilder}
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.kstream.{KTable, ValueMapper, ValueMapperWithKey}
+import org.apache.kafka.streams.kstream._
 import SerdeHelpers._
-import org.apache.kafka.streams.kstream.KeyValueMapper
-import org.apache.kafka.streams.kstream.Initializer
-import org.apache.kafka.streams.kstream.Aggregator
-import cats.arrow.FunctionK
-import org.apache.kafka.streams.kstream.Predicate
 
 /**
  * A Kafka Streams KTable wrapper that abstracts over the codecs used in KTable operations.
@@ -17,12 +12,44 @@ import org.apache.kafka.streams.kstream.Predicate
 class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
   import STable.{fromKTable, optionCodec}
 
+  /**
+   * Materialize this STable to a topic using the provided topic name and the given codec.
+   */
   def to[F[_]: Sync](outputTopicName: String): F[Unit] =
     Sync[F].delay(
       toKTable.toStream.to(
         outputTopicName,
         producedForCodec[C, K, V]
       )
+    )
+
+  /**
+   * Like `to`, but will render `None` as `null` in the output topic.
+   */
+  def toRenderOption[F[_]: Sync, V2: C](outputTopicName: String)(implicit ev: V =:= Option[V2]): F[Unit] =
+    Sync[F].delay(
+      toKTable
+        .toStream()
+        .to(
+          outputTopicName,
+          Produced.`with`(
+            Codec[C].serde[K],
+            serdeForNull[C, V2].asInstanceOf[Serde[V]]
+          )
+        )
+    )
+
+  /**
+   * Like `to`, but will remove any `null`s that may arise from log compaction or using any of the `filter` methods.
+   */
+  def toRemoveNulls[F[_]: Sync](outputTopicName: String): F[Unit] =
+    Sync[F].delay(
+      toKTable.toStream
+        .filter((k, v) => v != null)
+        .to(
+          outputTopicName,
+          producedForCodec[C, K, V]
+        )
     )
 
   def keyBy[K2: C](f: V => K2): STable[C, K2, V] =
@@ -32,13 +59,8 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
           ((k: K, v: V) => KeyValue.pair(f(v), v)): KeyValueMapper[K, V, KeyValue[K2, V]],
           groupedForCodec[C, K2, V]
         )
-        .aggregate[Option[V]](
-          (() => Option.empty[V]): Initializer[Option[V]],
-          ((k: K2, v: V, agg: Option[V]) => Option(v)): Aggregator[K2, V, Option[V]],
-          ((k: K2, v: V, agg: Option[V]) => agg): Aggregator[K2, V, Option[V]],
-          materializedForCodec[C, K2, Option[V]]
-        )
-    ).flattenOption
+        .reduce((acc: V, cur: V) => cur, (acc: V, old: V) => acc)
+    )
 
   def reKey[K2: C](f: K => K2): STable[C, K2, V] =
     fromKTable(
@@ -47,13 +69,8 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
           ((k: K, v: V) => KeyValue.pair(f(k), v)): KeyValueMapper[K, V, KeyValue[K2, V]],
           groupedForCodec[C, K2, V]
         )
-        .aggregate[Option[V]](
-          (() => Option.empty[V]): Initializer[Option[V]],
-          ((k: K2, v: V, agg: Option[V]) => Option(v)): Aggregator[K2, V, Option[V]],
-          ((k: K2, v: V, agg: Option[V]) => agg): Aggregator[K2, V, Option[V]],
-          materializedForCodec[C, K2, Option[V]]
-        )
-    ).flattenOption
+        .reduce((acc: V, cur: V) => cur, (acc: V, old: V) => acc)
+    )
 
   def transform[K2: C, V2: C](f: (K, V) => (K2, V2)): STable[C, K2, V2] =
     fromKTable(
@@ -62,13 +79,8 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
           val (k2, v2) = f(k, v)
           KeyValue.pair(k2, v2)
         }: KeyValueMapper[K, V, KeyValue[K2, V2]], groupedForCodec[C, K2, V2])
-        .aggregate[Option[V2]](
-          (() => Option.empty[V2]): Initializer[Option[V2]],
-          ((k: K2, v: V2, agg: Option[V2]) => Option(v)): Aggregator[K2, V2, Option[V2]],
-          ((k: K2, v: V2, agg: Option[V2]) => agg): Aggregator[K2, V2, Option[V2]],
-          materializedForCodec[C, K2, Option[V2]]
-        )
-    ).flattenOption
+        .reduce((acc: V2, cur: V2) => cur, (acc: V2, old: V2) => acc)
+    )
 
   def join[K2, V2, Z: C](
     other: STable[C, K2, V2]
@@ -113,13 +125,8 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
     fromKTable(
       toKTable
         .groupBy(((k: K, v: V) => KeyValue.pair(k, v)): KeyValueMapper[K, V, KeyValue[K, V]], groupedForCodec[C, K, V])
-        .aggregate[Option[V]](
-          (() => None): Initializer[Option[V]],
-          ((k: K, v: V, agg: Option[V]) => Some(agg.fold(v)(acc => f(acc, v)))): Aggregator[K, V, Option[V]],
-          ((k: K, v: V, agg: Option[V]) => agg): Aggregator[K, V, Option[V]],
-          materializedForCodec[C, K, Option[V]]
-        )
-    ).flattenOption
+        .reduce((acc: V, cur: V) => f(acc, cur), (acc: V, old: V) => acc)
+    )
 
   def map[V2: C](f: V => V2): STable[C, K, V2] =
     fromKTable(toKTable.mapValues(((v: V) => f(v)): ValueMapper[V, V2], materializedForCodec[C, K, V2]))
@@ -158,25 +165,23 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
   def flattenOption[V2: C](implicit ev: V =:= Option[V2]): STable[C, K, V2] =
     fromKTable(
       toKTable
-        .filter(((k: K, v: V) => ev(v).isDefined): Predicate[K, V], materializedForCodec[C, K, V])
+        .filter(((k: K, v: V) => ev(v).isDefined): Predicate[K, V])
         .mapValues(((v: V) => ev(v).get): ValueMapper[V, V2], materializedForCodec[C, K, V2])
     )
+
+  def filter(f: V => Boolean): STable[C, K, V] =
+    fromKTable(toKTable.filter(((k: K, v: V) => f(v)): Predicate[K, V]))
 
   def collect[V2: C](f: PartialFunction[V, V2]): STable[C, K, V2] =
     mapFilter(f.lift)
 
   def mapCodec[C2[_]: Codec](implicit K: C2[K], V: C2[V]): STable[C2, K, V] = {
     implicit def c2Option[A: C2]: C2[Option[A]] = Codec.codecForOption[C2, A]
-    fromKTable[C2, K, Option[V]](
+    fromKTable[C2, K, V](
       toKTable
         .groupBy(KeyValue.pair: KeyValueMapper[K, V, KeyValue[K, V]], groupedForCodec[C2, K, V])
-        .aggregate[Option[V]](
-          (() => Option.empty[V]): Initializer[Option[V]],
-          ((k: K, v: V, agg: Option[V]) => Option(v)): Aggregator[K, V, Option[V]],
-          ((k: K, v: V, agg: Option[V]) => agg): Aggregator[K, V, Option[V]],
-          materializedForCodec[C2, K, Option[V]]
-        )
-    ).flattenOption
+        .reduce((acc: V, cur: V) => cur, (acc: V, old: V) => acc)
+    )
   }
 }
 
@@ -189,13 +194,4 @@ object STable {
 
   def apply[C[_]: Codec, K: C, V: C](sb: StreamsBuilder, topicName: String): STable[C, K, V] =
     fromKTable(sb.table(topicName, consumedForCodec[C, K, V]))
-
-  /**
-   * Like `STable.apply`, but filters out `null` values.
-   */
-  def withLogCompaction[C[_]: Codec, K: C, V: C](
-    sb: StreamsBuilder,
-    topicName: String
-  ): STable[C, K, V] =
-    STable[C, K, Option[V]](sb, topicName).flattenOption
 }
