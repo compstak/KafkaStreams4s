@@ -24,13 +24,5 @@ package object avro4s {
     ): Avro4sTable[K, V] =
       fromKTable(sb.table(topicName, Avro4sSerdes.consumedForAvro4s[K, V]))
 
-    /**
-     * Like `Avro4sTable.apply`, but filters out `null` values.
-     */
-    def withLogCompaction[K >: Null: SchemaFor: Encoder: Decoder, V >: Null: SchemaFor: Encoder: Decoder](
-      sb: StreamsBuilder,
-      topicName: String
-    ): Avro4sTable[K, V] =
-      Avro4sTable[K, Option[V]](sb, topicName).flattenOption
   }
 }

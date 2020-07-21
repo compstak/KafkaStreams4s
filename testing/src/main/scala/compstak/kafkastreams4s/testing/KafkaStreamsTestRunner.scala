@@ -84,7 +84,7 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
 
   def topology(topic: String, outputTopic: String): F[Topology] = {
     val sb = new StreamsBuilder
-    f(STable.withLogCompaction[C, KA, A](sb, topic)).to[F](outputTopic) >> Sync[F].delay(sb.build)
+    f(STable[C, KA, A](sb, topic)).toRemoveNulls[F](outputTopic) >> Sync[F].delay(sb.build)
   }
 
   def props = {
