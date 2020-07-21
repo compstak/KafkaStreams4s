@@ -1,14 +1,9 @@
 package compstak.kafkastreams4s
 
-import cats.Invariant
-import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.common.serialization.Serdes
-import org.apache.kafka.common.serialization.Serializer
-import org.apache.kafka.common.serialization.Deserializer
-import java.{util => ju}
+import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
 import org.apache.kafka.common.header.Headers
-import cats.Functor
-import cats.Contravariant
+import cats.{Contravariant, Functor, Invariant}
+import java.{util => ju}
 
 trait SerdeInstances {
 
