@@ -87,10 +87,9 @@ object JoinTables {
   )(
     f: V1 => Option[K2]
   )(g: (V1, V2) => Z): CirceTable[K1, Z] =
-    a.join(b)(v1 =>
+    a.joinOption(b)(v1 =>
       f(v1)
         .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
-        .orNull
     )(g)
 
   def leftJoin[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
@@ -113,10 +112,9 @@ object JoinTables {
   )(
     f: V1 => Option[K2]
   )(g: (V1, V2) => Z): CirceTable[K1, Z] =
-    a.leftJoin(b)(v1 =>
+    a.leftJoinOption(b)(v1 =>
       f(v1)
         .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
-        .orNull
     )(g)
 
   private[kafkastreams4s] def replicateCompositeKeySchema[A](

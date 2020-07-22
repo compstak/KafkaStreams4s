@@ -89,9 +89,9 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
 
   def joinOption[K2, V2, Z: C](
     other: STable[C, K2, V2]
-  )(f: V => K2)(g: (V, V2) => Option[Z])(implicit ev: Null <:< Z): STable[C, K, Z] =
+  )(f: V => Option[K2])(g: (V, V2) => Z)(implicit ev: Null <:< K2): STable[C, K, Z] =
     fromKTable(
-      toKTable.join(other.toKTable, (v: V) => f(v), (v: V, v2: V2) => g(v, v2).orNull, materializedForCodec[C, K, Z])
+      toKTable.join(other.toKTable, (v: V) => f(v).orNull, (v: V, v2: V2) => g(v, v2), materializedForCodec[C, K, Z])
     )
 
   def leftJoin[K2, V2, Z: C](
@@ -103,10 +103,10 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
 
   def leftJoinOption[K2, V2, Z: C](
     other: STable[C, K2, V2]
-  )(f: V => K2)(g: (V, V2) => Option[Z])(implicit ev: Null <:< Z): STable[C, K, Z] =
+  )(f: V => Option[K2])(g: (V, V2) => Z)(implicit ev: Null <:< K2): STable[C, K, Z] =
     fromKTable(
       toKTable
-        .leftJoin(other.toKTable, (v: V) => f(v), (v: V, v2: V2) => g(v, v2).orNull, materializedForCodec[C, K, Z])
+        .leftJoin(other.toKTable, (v: V) => f(v).orNull, (v: V, v2: V2) => g(v, v2), materializedForCodec[C, K, Z])
     )
 
   def scan[V2: C](z: => V2)(f: (V2, V) => V2): STable[C, K, V2] =
