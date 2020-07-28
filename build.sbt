@@ -124,7 +124,7 @@ lazy val testing = (project in file("testing"))
     libraryDependencies ++= Seq(
       "org.apache.kafka" % "kafka-streams-test-utils" % KafkaVersion,
       "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion,
-      "org.scalameta" %% "munit" % MunitVersion % Test,
+      "org.scalameta" %% "munit" % MunitVersion % "test, it",
       "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
       "io.circe" %% "circe-literal" % CirceVersion % IntegrationTest,
       "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
