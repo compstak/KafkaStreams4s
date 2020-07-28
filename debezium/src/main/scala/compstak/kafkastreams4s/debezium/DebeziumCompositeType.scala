@@ -13,6 +13,11 @@ trait DebeziumCompositeType[A] {
 object DebeziumCompositeType {
 
   /**
+   * Returns the DebeziumCompositeType of a value
+   */
+  def of[A](value: A)(implicit dctA: DebeziumCompositeType[A]): DebeziumCompositeType[A] = dctA
+
+  /**
    * Returns a simple debezium "struct" schema with a single field
    */
   def fromPrimitive[A: DebeziumPrimitiveType](fieldName: String): DebeziumCompositeType[A] =
