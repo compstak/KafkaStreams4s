@@ -111,12 +111,7 @@ lazy val shapeless = (project in file("shapeless"))
   .settings(commonSettings)
   .settings(
     name := "kafka-streams4s-shapeless",
-    libraryDependencies ++= Seq(
-      "com.chuusai" %% "shapeless" % ShapelessVersion,
-      "org.scalatest" %% "scalatest" % "3.2.0" % "test",
-      "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % "test",
-      "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.3" % "test"
-    )
+    libraryDependencies += "com.chuusai" %% "shapeless" % "2.3.3"
   )
   .dependsOn(debezium)
 
@@ -129,18 +124,17 @@ lazy val testing = (project in file("testing"))
     libraryDependencies ++= Seq(
       "org.apache.kafka" % "kafka-streams-test-utils" % KafkaVersion,
       "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion,
-      "org.scalameta" %% "munit" % MunitVersion % Test,
+      "org.scalameta" %% "munit" % MunitVersion % "test, it",
       "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
       "io.circe" %% "circe-literal" % CirceVersion % IntegrationTest,
       "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
-      "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest,
-      "org.scalameta" %% "munit" % MunitVersion % IntegrationTest
+      "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest
     ),
     Defaults.itSettings,
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
   )
-  .dependsOn(core, circe, avro4s, debezium)
+  .dependsOn(core, circe, avro4s, debezium, shapeless)
 
 lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
