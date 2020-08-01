@@ -1,6 +1,7 @@
 package compstak.kafkastreams4s
 
 import cats.effect.Sync
+import cats.data.Ior
 import org.apache.kafka.streams.{KeyValue, StreamsBuilder}
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream._
@@ -108,6 +109,15 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
       )
     )
 
+  def keyOuterJoin[V2: C, Z: C](other: STable[C, K, V2])(f: Ior[V, V2] => Z): STable[C, K, Z] =
+    fromKTable(
+      toKTable.outerJoin(
+        other.toKTable,
+        ((v: V, v2: V2) => f(toIor(v, v2))): ValueJoiner[V, V2, Z],
+        materializedForCodec[C, K, Z]
+      )
+    )
+
   def leftJoin[K2, V2, Z: C](
     other: STable[C, K2, V2]
   )(f: V => K2)(g: (V, Option[V2]) => Z): STable[C, K, Z] =
@@ -203,6 +213,11 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
         .reduce((acc: V, cur: V) => cur, (acc: V, old: V) => acc)
     )
   }
+
+  private def toIor[A, B](a: A, b: B): Ior[A, B] =
+    if (a != null && b != null) Ior.both(a, b)
+    else if (a == null) Ior.right(b)
+    else Ior.left(a)
 }
 
 object STable {

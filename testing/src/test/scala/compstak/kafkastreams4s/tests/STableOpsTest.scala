@@ -117,6 +117,32 @@ class STableOpsTest extends munit.FunSuite {
 
   }
 
+  test("STable keyJoin should work as expected") {
+    val inputA = List(1 -> "foo", 2 -> "bar")
+    val inputB = List(1 -> "baz", 3 -> "qux")
+
+    val out = "out"
+
+    val sb = new StreamsBuilder
+    val tableA = CirceTable[Int, String](sb, "a")
+    val tableB = CirceTable[Int, String](sb, "b")
+
+    val result = tableA.keyOuterJoin(tableB)(ior => ior.merge)
+
+    Resource
+      .liftF(result.to[IO](out) >> IO(sb.build))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .use(driver =>
+        KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, Int, String](driver, "a", inputA: _*) >>
+          KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, Int, String](driver, "b", inputB: _*) >>
+          KafkaStreamsTestRunner
+            .outputTestTable[IO, CirceCodec, Int, String](driver, out)
+            .map(res => assertEquals(Map(1 -> "foobaz", 2 -> "bar", 3 -> "qux"), res))
+      )
+      .unsafeToFuture
+
+  }
+
   test("STable keyBy should work as expected") {
     val input = List("foo" -> 1, "bar" -> 2, "baz" -> 3, "qux" -> 4)
 
