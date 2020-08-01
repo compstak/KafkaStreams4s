@@ -9,8 +9,113 @@ import compstak.kafkastreams4s.circe.CirceCodec
 import scala.concurrent.duration._
 import compstak.kafkastreams4s.testing.KafkaStreamsTestRunner
 import scala.util.Try
+import cats.effect.Resource
 
 class STableOpsTest extends munit.FunSuite {
+
+  test("STable join should work as expected") {
+    val inputA = List(1 -> "foo", 2 -> "bar")
+    val inputB = List("foo" -> 1, "bar" -> 2)
+
+    val out = "out"
+
+    val sb = new StreamsBuilder
+    val tableA = CirceTable[Int, String](sb, "a")
+    val tableB = CirceTable[String, Int](sb, "b")
+
+    val result = tableA.join(tableB)(identity)((s, i) => s * i)
+
+    Resource
+      .liftF(result.to[IO](out) >> IO(sb.build))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .use(driver =>
+        KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, Int, String](driver, "a", inputA: _*) >>
+          KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, String, Int](driver, "b", inputB: _*) >>
+          KafkaStreamsTestRunner
+            .outputTestTable[IO, CirceCodec, Int, String](driver, out)
+            .map(res => assertEquals(Map(1 -> "foo", 2 -> "barbar"), res))
+      )
+      .unsafeToFuture
+
+  }
+
+  test("STable joinOption should work as expected") {
+    val inputA = List(1 -> "1", 2 -> "two", 3 -> "3")
+    val inputB = List(1 -> "foo", 2 -> "bar", 3 -> "baz").map { case (n, s) => (n: Integer, s) }
+
+    val out = "out"
+
+    val sb = new StreamsBuilder
+    val tableA = CirceTable[Int, String](sb, "a")
+    val tableB = CirceTable[Integer, String](sb, "b")
+
+    val result = tableA.joinOption(tableB)(s => Try(s.toInt: Integer).toOption)((a, b) => s"$a:$b")
+
+    Resource
+      .liftF(result.to[IO](out) >> IO(sb.build))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .use(driver =>
+        KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, Int, String](driver, "a", inputA: _*) >>
+          KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, Integer, String](driver, "b", inputB: _*) >>
+          KafkaStreamsTestRunner
+            .outputTestTable[IO, CirceCodec, Int, String](driver, out)
+            .map(res => assertEquals(Map(1 -> "1:foo", 3 -> "3:baz"), res))
+      )
+      .unsafeToFuture
+
+  }
+
+  test("STable leftJoin should work as expected") {
+    val inputA = List(1 -> "foo", 2 -> "bar")
+    val inputB = List("bar" -> 2)
+
+    val out = "out"
+
+    val sb = new StreamsBuilder
+    val tableA = CirceTable[Int, String](sb, "a")
+    val tableB = CirceTable[String, Int](sb, "b")
+
+    val result = tableA.leftJoin(tableB)(identity)((s, i) => s * i.getOrElse(1))
+
+    Resource
+      .liftF(result.to[IO](out) >> IO(sb.build))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .use(driver =>
+        KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, Int, String](driver, "a", inputA: _*) >>
+          KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, String, Int](driver, "b", inputB: _*) >>
+          KafkaStreamsTestRunner
+            .outputTestTable[IO, CirceCodec, Int, String](driver, out)
+            .map(res => assertEquals(Map(1 -> "foo", 2 -> "barbar"), res))
+      )
+      .unsafeToFuture
+
+  }
+
+  test("STable keyJoin should work as expected") {
+    val inputA = List(1 -> "foo", 2 -> "bar")
+    val inputB = List(1 -> "baz", 3 -> "qux")
+
+    val out = "out"
+
+    val sb = new StreamsBuilder
+    val tableA = CirceTable[Int, String](sb, "a")
+    val tableB = CirceTable[Int, String](sb, "b")
+
+    val result = tableA.keyJoin(tableB)((a, b) => s"$a:$b")
+
+    Resource
+      .liftF(result.to[IO](out) >> IO(sb.build))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .use(driver =>
+        KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, Int, String](driver, "a", inputA: _*) >>
+          KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec, Int, String](driver, "b", inputB: _*) >>
+          KafkaStreamsTestRunner
+            .outputTestTable[IO, CirceCodec, Int, String](driver, out)
+            .map(res => assertEquals(Map(1 -> "foo:baz"), res))
+      )
+      .unsafeToFuture
+
+  }
 
   test("STable keyBy should work as expected") {
     val input = List("foo" -> 1, "bar" -> 2, "baz" -> 3, "qux" -> 4)
