@@ -96,12 +96,16 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
 
   def keyJoin[V2, Z: C](other: STable[C, K, V2])(f: (V, V2) => Z): STable[C, K, Z] =
     fromKTable(
-      toKTable.join(other.toKTable, (v: V, v2: V2) => f(v, v2), materializedForCodec[C, K, Z])
+      toKTable.join(other.toKTable, ((v: V, v2: V2) => f(v, v2)): ValueJoiner[V, V2, Z], materializedForCodec[C, K, Z])
     )
 
   def keyLeftJoin[V2, Z: C](other: STable[C, K, V2])(f: (V, Option[V2]) => Z): STable[C, K, Z] =
     fromKTable(
-      toKTable.join(other.toKTable, (v: V, v2: V2) => f(v, Option(v2)), materializedForCodec[C, K, Z])
+      toKTable.join(
+        other.toKTable,
+        ((v: V, v2: V2) => f(v, Option(v2))): ValueJoiner[V, V2, Z],
+        materializedForCodec[C, K, Z]
+      )
     )
 
   def leftJoin[K2, V2, Z: C](
