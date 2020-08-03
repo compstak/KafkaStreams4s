@@ -129,6 +129,7 @@ lazy val testing = (project in file("testing"))
 lazy val tests = (project in file("tests"))
   .configs(IntegrationTest)
   .settings(commonSettings)
+  .settings(noPublishSettings)
   .settings(
     name := "kafka-streams4s-tests",
     libraryDependencies ++= Seq(
