@@ -1,7 +1,6 @@
 package compstak.kafkastreams4s.testing
 
 import org.apache.kafka.streams.Topology
-import fs2.kafka._
 import cats.effect.ConcurrentEffect
 import cats.effect.ContextShift
 import scala.util.Random
@@ -34,7 +33,7 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
       topicOut <- randomString
       topo <- topology(topicIn, topicOut)
       bs <- testDriverResource[F](topo).use(driver =>
-        inputTestTable[F, C, KA, A](driver, topicIn, input: _*) >> outputTestTable[F, C, KB, B](driver, topicOut)
+        inputTestTable[F, C](driver, topicIn, input: _*) >> outputTestTable[F, C, KB, B](driver, topicOut)
       )
     } yield bs
 
@@ -44,7 +43,7 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
       topicOut <- randomString
       topo <- topology(topicIn, topicOut)
       bs <- testDriverResource[F](topo).use(driver =>
-        inputTestTable[F, C, KA, A](driver, topicIn, input.toList.tupleLeft(ev("key")): _*) >>
+        inputTestTable[F, C](driver, topicIn, input.toList.tupleLeft(ev("key")): _*) >>
           outputTestTableList[F, C, KB, B](driver, topicOut)
       )
     } yield bs
@@ -61,27 +60,27 @@ object KafkaStreamsTestRunner {
   def testDriverResource[F[_]: Sync](topo: Topology): Resource[F, TopologyTestDriver] =
     Resource.make(Sync[F].delay(new TopologyTestDriver(topo, props)))(d => Sync[F].delay(d.close))
 
-  def inputTestTable[F[_]: Sync, C[_]: Codec, K: C, V: C](
-    driver: TopologyTestDriver,
-    name: String,
-    input: (K, V)*
-  ): F[Unit] = {
-    val in = driver.createInputTopic(name, Codec[C].serde[K].serializer, Codec[C].serde[V].serializer)
-    input.toList.traverse_ { case (k, v) => Sync[F].delay(in.pipeInput(k, v)) }
+  def inputTestTable[F[_], C[_]]: InputPartiallyAppliedF[F, C] = new InputPartiallyAppliedF
+
+  private[kafkastreams4s] class InputPartiallyAppliedF[F[_], C[_]](private val dummy: Unit = ()) extends AnyVal {
+    def apply[K: C, V: C](
+      driver: TopologyTestDriver,
+      name: String,
+      input: (K, V)*
+    )(implicit C: Codec[C], F: Sync[F]): F[Unit] = {
+      val in = driver.createInputTopic(name, Codec[C].serde[K].serializer, Codec[C].serde[V].serializer)
+      input.toList.traverse_ { case (k, v) => F.delay(in.pipeInput(k, v)) }
+    }
   }
 
   def outputTestTable[F[_]: Sync, C[_]: Codec, K: C, V: C](driver: TopologyTestDriver, name: String): F[Map[K, V]] = {
     val out = driver.createOutputTopic(name, Codec[C].serde[K].deserializer, Codec[C].serde[V].deserializer)
-    Sync[F].delay(
-      out.readKeyValuesToMap.asScala.toMap
-    )
+    Sync[F].delay(out.readKeyValuesToMap.asScala.toMap)
   }
 
   def outputTestTableList[F[_]: Sync, C[_]: Codec, K: C, V: C](driver: TopologyTestDriver, name: String): F[List[V]] = {
     val out = driver.createOutputTopic(name, Codec[C].serde[K].deserializer, Codec[C].serde[V].deserializer)
-    Sync[F].delay(
-      out.readValuesToList.asScala.toList
-    )
+    Sync[F].delay(out.readValuesToList.asScala.toList)
   }
 
   def props: ju.Properties = {

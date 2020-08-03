@@ -90,5 +90,6 @@ class ShapelessTests extends munit.FunSuite {
         )
       )
     )
+
   }
 }
