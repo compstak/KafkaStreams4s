@@ -6,8 +6,8 @@ _defaults: &defaults
   working_directory: ~/repo
   environment:
     # Customize the JVM maximum heap limit
-    JVM_OPTS: -Xmx3000m
-    SBT_OPTS: -Xmx2000m
+    JVM_OPTS: -Xmx4000m
+    SBT_OPTS: -Xmx4000m
     TERM: dumb
 
 workflows:
