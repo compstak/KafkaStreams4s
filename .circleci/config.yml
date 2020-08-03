@@ -5,9 +5,6 @@ _defaults: &defaults
     docker_layer_caching: false
   working_directory: ~/repo
   environment:
-    # Customize the JVM maximum heap limit
-    JVM_OPTS: -Xmx4000m
-    SBT_OPTS: -Xmx4000m
     TERM: dumb
 
 workflows:
@@ -54,7 +51,7 @@ jobs:
 
     - run:
         name: Compile
-        command: cat /dev/null | sbt +validate
+        command: cat /dev/null | sbt -mem 7500 +validate
 
     - save_cache:
         paths:

@@ -151,7 +151,8 @@ lazy val docs = (project in file("documentation"))
   .settings(
     mdocVariables := Map("VERSION" -> version.value),
     mdocIn := new java.io.File("docs/src"),
-    mdocOut := new java.io.File("docs/out")
+    mdocOut := new java.io.File("docs/out"),
+    crossScalaVersions := List(scala213)
   )
   .dependsOn(core, circe, debezium, avro4s, shapeless, testing)
   .enablePlugins(MdocPlugin)
