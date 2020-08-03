@@ -55,7 +55,7 @@ case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
 
   def leftJoin[K2: DebeziumPrimitiveType, V2, Z: Encoder: Decoder](
     other: DebeziumTable[K2, V2]
-  )(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
+  )(f: V => K2)(g: (V, Option[V2]) => Z): DebeziumTable[K, Z] =
     other.idNameOrKeySchema match {
       case Left(idName) =>
         copy(toCirceTable = JoinTables.leftJoin(toCirceTable, other.toCirceTable, idName, other.topicName)(f)(g))
@@ -67,7 +67,7 @@ case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
 
   def leftJoinOption[K2: DebeziumPrimitiveType, V2, Z: Encoder: Decoder](
     other: DebeziumTable[K2, V2]
-  )(f: V => Option[K2])(g: (V, V2) => Z): DebeziumTable[K, Z] =
+  )(f: V => Option[K2])(g: (V, Option[V2]) => Z): DebeziumTable[K, Z] =
     other.idNameOrKeySchema match {
       case Left(idName) =>
         copy(toCirceTable = JoinTables.leftJoinOption(toCirceTable, other.toCirceTable, idName, other.topicName)(f)(g))
