@@ -47,7 +47,7 @@ object JoinTables {
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z): CirceTable[K1, Z] =
+  )(g: (V1, Option[V2]) => Z): CirceTable[K1, Z] =
     a.leftJoin(b)(v1 =>
       DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1)))
     )(g)
@@ -59,7 +59,7 @@ object JoinTables {
     topicName: String
   )(
     f: V1 => Option[K2]
-  )(g: (V1, V2) => Z): CirceTable[K1, Z] =
+  )(g: (V1, Option[V2]) => Z): CirceTable[K1, Z] =
     a.leftJoin(b)(v1 =>
       f(v1)
         .map(k2 =>
@@ -99,7 +99,7 @@ object JoinTables {
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z): CirceTable[K1, Z] =
+  )(g: (V1, Option[V2]) => Z): CirceTable[K1, Z] =
     a.leftJoin(b)(v1 =>
       DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName))
     )(g)
@@ -111,7 +111,7 @@ object JoinTables {
     topicName: String
   )(
     f: V1 => Option[K2]
-  )(g: (V1, V2) => Z): CirceTable[K1, Z] =
+  )(g: (V1, Option[V2]) => Z): CirceTable[K1, Z] =
     a.leftJoinOption(b)(v1 =>
       f(v1)
         .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))

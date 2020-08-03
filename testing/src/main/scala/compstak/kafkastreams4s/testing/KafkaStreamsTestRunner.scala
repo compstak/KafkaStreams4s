@@ -24,52 +24,18 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
   f: STable[C, KA, A] => STable[C, KB, B]
 ) {
 
+  import KafkaStreamsTestRunner._
+
   private def randomString: F[String] = Sync[F].delay(Random.alphanumeric.take(32).mkString)
-
-  def testDriverResource(topo: Topology): Resource[F, TopologyTestDriver] =
-    Resource.make(Sync[F].delay(new TopologyTestDriver(topo, props)))(d => Sync[F].delay(d.close))
-
-  def runTestTopologyMap(
-    topicIn: String,
-    topicOut: String,
-    driver: TopologyTestDriver,
-    input: Seq[(KA, A)]
-  ): F[Map[KB, B]] =
-    runTestTopology(topicIn, topicOut, driver, input).flatMap(out =>
-      Sync[F].delay(
-        out.readKeyValuesToMap.asScala.toMap
-      )
-    )
-
-  private def runTestTopology(
-    topicIn: String,
-    topicOut: String,
-    driver: TopologyTestDriver,
-    input: Seq[(KA, A)]
-  ): F[TestOutputTopic[KB, B]] = {
-    val in = driver.createInputTopic(topicIn, Codec[C].serde[KA].serializer, Codec[C].serde[A].serializer)
-    val out = driver.createOutputTopic(topicOut, Codec[C].serde[KB].deserializer, Codec[C].serde[B].deserializer)
-    input.toList.traverse_ { case (k, a) => Sync[F].delay(in.pipeInput(k, a)) }.as(out)
-  }
-
-  def runTestTopologyValues(
-    topicIn: String,
-    topicOut: String,
-    driver: TopologyTestDriver,
-    input: Seq[(KA, A)]
-  ): F[List[B]] =
-    runTestTopology(topicIn, topicOut, driver, input).flatMap(out =>
-      Sync[F].delay(
-        out.readValuesToList.asScala.toList
-      )
-    )
 
   def run(input: (KA, A)*): F[Map[KB, B]] =
     for {
       topicIn <- randomString
       topicOut <- randomString
       topo <- topology(topicIn, topicOut)
-      bs <- testDriverResource(topo).use(driver => runTestTopologyMap(topicIn, topicOut, driver, input))
+      bs <- testDriverResource[F](topo).use(driver =>
+        inputTestTable[F, C, KA, A](driver, topicIn, input: _*) >> outputTestTable[F, C, KB, B](driver, topicOut)
+      )
     } yield bs
 
   def runList(input: A*)(implicit ev: String =:= KA): F[List[B]] =
@@ -77,8 +43,9 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
       topicIn <- randomString
       topicOut <- randomString
       topo <- topology(topicIn, topicOut)
-      bs <- testDriverResource(topo).use(driver =>
-        runTestTopologyValues(topicIn, topicOut, driver, input.toList.tupleLeft(ev("key")))
+      bs <- testDriverResource[F](topo).use(driver =>
+        inputTestTable[F, C, KA, A](driver, topicIn, input.toList.tupleLeft(ev("key")): _*) >>
+          outputTestTableList[F, C, KB, B](driver, topicOut)
       )
     } yield bs
 
@@ -87,15 +54,42 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
     f(STable[C, KA, A](sb, topic)).toRemoveNulls[F](outputTopic) >> Sync[F].delay(sb.build)
   }
 
-  def props = {
+}
+
+object KafkaStreamsTestRunner {
+
+  def testDriverResource[F[_]: Sync](topo: Topology): Resource[F, TopologyTestDriver] =
+    Resource.make(Sync[F].delay(new TopologyTestDriver(topo, props)))(d => Sync[F].delay(d.close))
+
+  def inputTestTable[F[_]: Sync, C[_]: Codec, K: C, V: C](
+    driver: TopologyTestDriver,
+    name: String,
+    input: (K, V)*
+  ): F[Unit] = {
+    val in = driver.createInputTopic(name, Codec[C].serde[K].serializer, Codec[C].serde[V].serializer)
+    input.toList.traverse_ { case (k, v) => Sync[F].delay(in.pipeInput(k, v)) }
+  }
+
+  def outputTestTable[F[_]: Sync, C[_]: Codec, K: C, V: C](driver: TopologyTestDriver, name: String): F[Map[K, V]] = {
+    val out = driver.createOutputTopic(name, Codec[C].serde[K].deserializer, Codec[C].serde[V].deserializer)
+    Sync[F].delay(
+      out.readKeyValuesToMap.asScala.toMap
+    )
+  }
+
+  def outputTestTableList[F[_]: Sync, C[_]: Codec, K: C, V: C](driver: TopologyTestDriver, name: String): F[List[V]] = {
+    val out = driver.createOutputTopic(name, Codec[C].serde[K].deserializer, Codec[C].serde[V].deserializer)
+    Sync[F].delay(
+      out.readValuesToList.asScala.toList
+    )
+  }
+
+  def props: ju.Properties = {
     val p = new ju.Properties
     p.put(StreamsConfig.APPLICATION_ID_CONFIG, "kafkastreams4s-test")
     p.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
     p
   }
-}
-
-object KafkaStreamsTestRunner {
 
   def run[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
     f: STable[C, KA, A] => STable[C, KB, B],

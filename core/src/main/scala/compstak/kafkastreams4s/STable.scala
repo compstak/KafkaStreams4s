@@ -1,6 +1,7 @@
 package compstak.kafkastreams4s
 
 import cats.effect.Sync
+import cats.data.Ior
 import org.apache.kafka.streams.{KeyValue, StreamsBuilder}
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream._
@@ -94,19 +95,48 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
       toKTable.join(other.toKTable, (v: V) => f(v).orNull, (v: V, v2: V2) => g(v, v2), materializedForCodec[C, K, Z])
     )
 
+  def keyJoin[V2, Z: C](other: STable[C, K, V2])(f: (V, V2) => Z): STable[C, K, Z] =
+    fromKTable(
+      toKTable.join(other.toKTable, ((v: V, v2: V2) => f(v, v2)): ValueJoiner[V, V2, Z], materializedForCodec[C, K, Z])
+    )
+
+  def keyLeftJoin[V2, Z: C](other: STable[C, K, V2])(f: (V, Option[V2]) => Z): STable[C, K, Z] =
+    fromKTable(
+      toKTable.join(
+        other.toKTable,
+        ((v: V, v2: V2) => f(v, Option(v2))): ValueJoiner[V, V2, Z],
+        materializedForCodec[C, K, Z]
+      )
+    )
+
+  def keyOuterJoin[V2: C, Z: C](other: STable[C, K, V2])(f: Ior[V, V2] => Z): STable[C, K, Z] =
+    fromKTable(
+      toKTable.outerJoin(
+        other.toKTable,
+        ((v: V, v2: V2) => f(toIor(v, v2))): ValueJoiner[V, V2, Z],
+        materializedForCodec[C, K, Z]
+      )
+    )
+
   def leftJoin[K2, V2, Z: C](
     other: STable[C, K2, V2]
-  )(f: V => K2)(g: (V, V2) => Z): STable[C, K, Z] =
+  )(f: V => K2)(g: (V, Option[V2]) => Z): STable[C, K, Z] =
     fromKTable(
-      toKTable.leftJoin(other.toKTable, (v: V) => f(v), (v: V, v2: V2) => g(v, v2), materializedForCodec[C, K, Z])
+      toKTable
+        .leftJoin(other.toKTable, (v: V) => f(v), (v: V, v2: V2) => g(v, Option(v2)), materializedForCodec[C, K, Z])
     )
 
   def leftJoinOption[K2, V2, Z: C](
     other: STable[C, K2, V2]
-  )(f: V => Option[K2])(g: (V, V2) => Z)(implicit ev: Null <:< K2): STable[C, K, Z] =
+  )(f: V => Option[K2])(g: (V, Option[V2]) => Z)(implicit ev: Null <:< K2): STable[C, K, Z] =
     fromKTable(
       toKTable
-        .leftJoin(other.toKTable, (v: V) => f(v).orNull, (v: V, v2: V2) => g(v, v2), materializedForCodec[C, K, Z])
+        .leftJoin(
+          other.toKTable,
+          (v: V) => f(v).orNull,
+          (v: V, v2: V2) => g(v, Option(v2)),
+          materializedForCodec[C, K, Z]
+        )
     )
 
   def scan[V2: C](z: => V2)(f: (V2, V) => V2): STable[C, K, V2] =
@@ -183,6 +213,11 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
         .reduce((acc: V, cur: V) => cur, (acc: V, old: V) => acc)
     )
   }
+
+  private def toIor[A, B](a: A, b: B): Ior[A, B] =
+    if (a != null && b != null) Ior.both(a, b)
+    else if (a == null) Ior.right(b)
+    else Ior.left(a)
 }
 
 object STable {
