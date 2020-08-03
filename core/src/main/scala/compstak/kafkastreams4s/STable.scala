@@ -6,6 +6,7 @@ import org.apache.kafka.streams.{KeyValue, StreamsBuilder}
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream._
 import SerdeHelpers._
+import cats.kernel.Monoid
 
 /**
  * A Kafka Streams KTable wrapper that abstracts over the codecs used in KTable operations.
@@ -157,6 +158,19 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
         .groupBy(((k: K, v: V) => KeyValue.pair(k, v)): KeyValueMapper[K, V, KeyValue[K, V]], groupedForCodec[C, K, V])
         .reduce((acc: V, cur: V) => f(acc, cur), (acc: V, old: V) => acc)
     )
+
+  def scanWith[K2: C, V2: C](f: (K, V) => (K2, V2))(g: (V2, V2) => V2): STable[C, K2, V2] =
+    fromKTable(
+      toKTable
+        .groupBy({ (k: K, v: V) =>
+          val (k2, v2) = f(k, v)
+          KeyValue.pair(k2, v2)
+        }: KeyValueMapper[K, V, KeyValue[K2, V2]], groupedForCodec[C, K2, V2])
+        .reduce((acc: V2, cur: V2) => g(acc, cur), (acc: V2, old: V2) => acc)
+    )
+
+  def scanMap[V2: C: Monoid](f: V => V2): STable[C, K, V2] =
+    scan(Monoid[V2].empty)((v2, v) => Monoid[V2].combine(v2, f(v)))
 
   def map[V2: C](f: V => V2): STable[C, K, V2] =
     fromKTable(toKTable.mapValues(((v: V) => f(v)): ValueMapper[V, V2], materializedForCodec[C, K, V2]))

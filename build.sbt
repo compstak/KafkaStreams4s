@@ -51,7 +51,7 @@ scalacOptions ++= Seq(
 
 addCommandAlias("fmtAll", ";scalafmt; test:scalafmt; scalafmtSbt")
 addCommandAlias("fmtCheck", ";scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
-addCommandAlias("validate", ";fmtCheck; test; it:compile")
+addCommandAlias("validate", ";fmtCheck; test; it:compile; docs/mdoc")
 
 lazy val commonSettings = Seq(
   crossScalaVersions := supportedScalaVersions,
@@ -118,12 +118,21 @@ lazy val shapeless = (project in file("shapeless"))
 lazy val testing = (project in file("testing"))
   .configs(IntegrationTest)
   .settings(commonSettings)
-  .settings(noPublishSettings)
+  .settings(
+    name := "kafka-streams4s-testing",
+    libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams-test-utils" % KafkaVersion
+    )
+  )
+  .dependsOn(core)
+
+lazy val tests = (project in file("tests"))
+  .configs(IntegrationTest)
+  .settings(commonSettings)
   .settings(
     name := "kafka-streams4s-tests",
     libraryDependencies ++= Seq(
-      "org.apache.kafka" % "kafka-streams-test-utils" % KafkaVersion,
-      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion,
+      "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion % IntegrationTest,
       "org.scalameta" %% "munit" % MunitVersion % "test, it",
       "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
       "io.circe" %% "circe-literal" % CirceVersion % IntegrationTest,
@@ -134,11 +143,22 @@ lazy val testing = (project in file("testing"))
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
   )
-  .dependsOn(core, circe, avro4s, debezium, shapeless)
+  .dependsOn(core, circe, avro4s, debezium, shapeless, testing)
+
+lazy val docs = (project in file("documentation"))
+  .settings(commonSettings)
+  .settings(noPublishSettings)
+  .settings(
+    mdocVariables := Map("VERSION" -> version.value),
+    mdocIn := new java.io.File("docs/src"),
+    mdocOut := new java.io.File("docs/out")
+  )
+  .dependsOn(core, circe, debezium, avro4s, shapeless, testing)
+  .enablePlugins(MdocPlugin)
 
 lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(name := "kafka-streams4s")
-  .dependsOn(core, circe, debezium, avro4s, shapeless, testing)
-  .aggregate(core, circe, debezium, avro4s, shapeless, testing)
+  .dependsOn(core, circe, debezium, avro4s, shapeless, testing, tests, docs)
+  .aggregate(core, circe, debezium, avro4s, shapeless, testing, tests, docs)
