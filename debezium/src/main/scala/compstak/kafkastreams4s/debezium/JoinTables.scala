@@ -4,147 +4,118 @@ import io.circe.{Decoder, Encoder, Json}
 import io.circe.syntax._
 import io.circe.parser.decode
 import cats.implicits._
-import compstak.circe.debezium.DebeziumKeyPayload
-import compstak.circe.debezium.DebeziumKey
+import compstak.circe.debezium._
+import compstak.kafkastreams4s.circe.CirceSerdes
 import org.apache.kafka.streams.kstream.KTable
-import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.common.serialization.Serdes
-import io.circe.JsonObject
-import compstak.circe.debezium.DebeziumKeySchema
-import compstak.circe.debezium.DebeziumFieldSchema
-import compstak.circe.debezium.DebeziumSchemaPrimitive
+import org.apache.kafka.common.serialization.{Serde, Serdes}
+import compstak.kafkastreams4s.circe.CirceTable
 
 object JoinTables {
 
-  def joinComposite[K1, K2, V1, V2, Z](
-    a: KTable[K1, V1],
-    b: KTable[DebeziumKey[K2], V2],
+  def joinComposite[K1: Encoder: Decoder, K2, V1, V2, Z: Encoder: Decoder](
+    a: CirceTable[K1, V1],
+    b: CirceTable[DebeziumKey[K2], V2],
     schema: DebeziumCompositeType[K2],
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z): KTable[K1, Z] =
-    a.join(
-      b,
-      v1 =>
-        DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1))),
-      (v1, v2) => g(v1, v2)
-    )
+  )(g: (V1, V2) => Z): CirceTable[K1, Z] =
+    a.join(b)(v1 =>
+      DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1)))
+    )(g)
 
-  def joinOptionComposite[K1, K2, V1, V2, Z](
-    a: KTable[K1, V1],
-    b: KTable[DebeziumKey[K2], V2],
+  def joinOptionComposite[K1: Encoder: Decoder, K2, V1, V2, Z: Encoder: Decoder](
+    a: CirceTable[K1, V1],
+    b: CirceTable[DebeziumKey[K2], V2],
     schema: DebeziumCompositeType[K2],
     topicName: String
   )(
     f: V1 => Option[K2]
-  )(g: (V1, V2) => Z): KTable[K1, Z] =
-    a.join(
-      b,
-      v1 =>
-        f(v1)
-          .map(k2 =>
-            DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(k2))
-          )
-          .orNull,
-      (v1, v2) => g(v1, v2)
-    )
+  )(g: (V1, V2) => Z): CirceTable[K1, Z] =
+    a.join(b)(v1 =>
+      f(v1)
+        .map(k2 =>
+          DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(k2))
+        )
+        .orNull
+    )(g)
 
-  def leftJoinComposite[K1, K2, V1, V2, Z](
-    a: KTable[K1, V1],
-    b: KTable[DebeziumKey[K2], V2],
+  def leftJoinComposite[K1: Encoder: Decoder, K2, V1, V2, Z: Encoder: Decoder](
+    a: CirceTable[K1, V1],
+    b: CirceTable[DebeziumKey[K2], V2],
     schema: DebeziumCompositeType[K2],
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z): KTable[K1, Z] =
-    a.leftJoin(
-      b,
-      v1 =>
-        DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1))),
-      (v1, v2) => g(v1, v2)
-    )
+  )(g: (V1, Option[V2]) => Z): CirceTable[K1, Z] =
+    a.leftJoin(b)(v1 =>
+      DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(f(v1)))
+    )(g)
 
-  def leftJoinOptionComposite[K1, K2, V1, V2, Z](
-    a: KTable[K1, V1],
-    b: KTable[DebeziumKey[K2], V2],
+  def leftJoinOptionComposite[K1: Encoder: Decoder, K2, V1, V2, Z: Encoder: Decoder](
+    a: CirceTable[K1, V1],
+    b: CirceTable[DebeziumKey[K2], V2],
     schema: DebeziumCompositeType[K2],
     topicName: String
   )(
     f: V1 => Option[K2]
-  )(g: (V1, V2) => Z): KTable[K1, Z] =
-    a.leftJoin(
-      b,
-      v1 =>
-        f(v1)
-          .map(k2 =>
-            DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(k2))
-          )
-          .orNull,
-      (v1, v2) => g(v1, v2)
-    )
+  )(g: (V1, Option[V2]) => Z): CirceTable[K1, Z] =
+    a.leftJoin(b)(v1 =>
+      f(v1)
+        .map(k2 =>
+          DebeziumKey(replicateCompositeKeySchema[K2](schema, topicName), DebeziumKeyPayload.CompositeKeyPayload(k2))
+        )
+        .orNull
+    )(g)
 
-  def join[K1, K2: DebeziumPrimitiveType, V1, V2, Z](
-    a: KTable[K1, V1],
-    b: KTable[DebeziumKey[K2], V2],
+  def join[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
+    a: CirceTable[K1, V1],
+    b: CirceTable[DebeziumKey[K2], V2],
     idName: String,
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z): KTable[K1, Z] =
-    a.join(
-      b,
-      v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName)),
-      (v1, v2) => g(v1, v2)
-    )
+  )(g: (V1, V2) => Z): CirceTable[K1, Z] =
+    a.join(b)(v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName))
+    )(g)
 
-  def joinOption[K1, K2: DebeziumPrimitiveType, V1, V2, Z](
-    a: KTable[K1, V1],
-    b: KTable[DebeziumKey[K2], V2],
+  def joinOption[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
+    a: CirceTable[K1, V1],
+    b: CirceTable[DebeziumKey[K2], V2],
     idName: String,
     topicName: String
   )(
     f: V1 => Option[K2]
-  )(g: (V1, V2) => Z): KTable[K1, Z] =
-    a.join(
-      b,
-      v1 =>
-        f(v1)
-          .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
-          .orNull,
-      (v1, v2) => g(v1, v2)
-    )
+  )(g: (V1, V2) => Z): CirceTable[K1, Z] =
+    a.joinOption(b)(v1 =>
+      f(v1)
+        .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
+    )(g)
 
-  def leftJoin[K1, K2: DebeziumPrimitiveType, V1, V2, Z](
-    a: KTable[K1, V1],
-    b: KTable[DebeziumKey[K2], V2],
+  def leftJoin[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
+    a: CirceTable[K1, V1],
+    b: CirceTable[DebeziumKey[K2], V2],
     idName: String,
     topicName: String
   )(
     f: V1 => K2
-  )(g: (V1, V2) => Z): KTable[K1, Z] =
-    a.leftJoin(
-      b,
-      v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName)),
-      (v1, v2) => g(v1, v2)
-    )
+  )(g: (V1, Option[V2]) => Z): CirceTable[K1, Z] =
+    a.leftJoin(b)(v1 =>
+      DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName))
+    )(g)
 
-  def leftJoinOption[K1, K2: DebeziumPrimitiveType, V1, V2, Z](
-    a: KTable[K1, V1],
-    b: KTable[DebeziumKey[K2], V2],
+  def leftJoinOption[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
+    a: CirceTable[K1, V1],
+    b: CirceTable[DebeziumKey[K2], V2],
     idName: String,
     topicName: String
   )(
     f: V1 => Option[K2]
-  )(g: (V1, V2) => Z): KTable[K1, Z] =
-    a.leftJoin(
-      b,
-      v1 =>
-        f(v1)
-          .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
-          .orNull,
-      (v1, v2) => g(v1, v2)
-    )
+  )(g: (V1, Option[V2]) => Z): CirceTable[K1, Z] =
+    a.leftJoinOption(b)(v1 =>
+      f(v1)
+        .map(k2 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(k2, idName)))
+    )(g)
 
   private[kafkastreams4s] def replicateCompositeKeySchema[A](
     ct: DebeziumCompositeType[A],

@@ -27,7 +27,7 @@ import java.{util => ju}
 import org.apache.kafka.common.serialization.Serdes
 import cats.effect.ExitCode
 
-class EndToEndTests extends munit.FunSuite {
+class DebeziumEndToEndTests extends munit.FunSuite {
 
   override val munitTimeout = 3.minutes
 
@@ -36,7 +36,7 @@ class EndToEndTests extends munit.FunSuite {
 
   val kafkaHost = "localhost:9092"
   val outputTopic = "output.topic"
-  val (foo, bar) = ("foo", "bar")
+  val (foo, bar, baz) = ("foo", "bar", "baz")
 
   val username = "postgres"
   val password = ""
@@ -68,7 +68,7 @@ class EndToEndTests extends munit.FunSuite {
             "database.password": $password,
             "database.dbname" : $database,
             "database.server.name": "experiment",
-            "table.whitelist": "public.atable, public.btable"
+            "table.whitelist": "public.atable, public.btable, public.ctable"
           }
           """
         ),
@@ -79,9 +79,9 @@ class EndToEndTests extends munit.FunSuite {
       _ <- Resource.liftF(
         (
           KafkaStream.run,
-          IO.sleep(1.minutes)
+          IO.sleep(2.minutes)
         ).parTupled.void
-          .timeout(1.minute)
+          .timeout(2.minute)
           .recoverWith { case t: java.util.concurrent.TimeoutException => IO.unit }
       )
     } yield ()
@@ -97,19 +97,25 @@ class EndToEndTests extends munit.FunSuite {
       a_id INTEGER REFERENCES atable (id),
       bar TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS ctable (
+      id SERIAL PRIMARY KEY,
+      b_id INTEGER REFERENCES btable (id),
+      baz TEXT
+    )
   """.update.run.void
 
   def insertStmt: ConnectionIO[Unit] =
     sql"""
-      WITH a AS (
-        INSERT INTO atable (foo) VALUES ($foo) RETURNING id
-      )
-      INSERT INTO btable (a_id, bar) VALUES ((SELECT id FROM a), $bar);
+      WITH 
+        a AS (INSERT INTO atable (foo) VALUES ($foo) RETURNING id),
+        b AS (INSERT INTO btable (a_id, bar) VALUES ((SELECT id FROM a), $bar) RETURNING id)
+      INSERT INTO ctable (b_id, baz) VALUES ((SELECT id FROM b), $baz);
     """.update.run.void
 
-  test("Joins two debezium streams and aggregates the result") {
+  test("Joins three debezium streams and aggregates the result") {
     make
-      .use(_ => Consumer.consume.timeout(2.minute).map(assertEquals(_, (foo, bar))))
+      .use(_ => Consumer.consume.timeout(2.minute).map(assertEquals(_, (foo, bar, baz))))
       .unsafeToFuture()
   }
 
@@ -129,26 +135,31 @@ class EndToEndTests extends munit.FunSuite {
 
       val bs = DebeziumTable.withCirceDebezium[Int, Btable](builder, "experiment.public.btable", "id")
 
-      val output: KTable[DebeziumKey[Int], (String, String)] =
-        bs.joinOption(as)(extractAId)(valueJoiner).toKTable
+      val cs = DebeziumTable.withCirceDebezium[Int, Ctable](builder, "experiment.public.ctable", "id")
 
-      output
-        .toStream()
-        .to(
-          outputTopic,
-          Produced.`with`(CirceSerdes.serdeForCirce[DebeziumKey[Int]], CirceSerdes.serdeForCirce[(String, String)])
-        )
-      builder.build()
+      val asAndBs: DebeziumTable[Int, (String, String)] =
+        bs.joinOption(as)(extractAId)(valueJoiner)
+
+      val output: DebeziumTable[Int, (String, String, String)] =
+        cs.joinOption(asAndBs)(extractBId) { case (dvc, (foo, bar)) => (foo, bar, dvc.payload.after.foldMap(_.baz)) }
+
+      output.to[IO](outputTopic) >>
+        IO(builder.build())
     }
 
     def extractAId(d: DebeziumValue[Btable]): Option[Int] =
       d.payload.after.map(_.a_id)
 
+    def extractBId(d: DebeziumValue[Ctable]): Option[Int] =
+      d.payload.after.map(_.b_id)
+
     def valueJoiner(b: DebeziumValue[Btable], a: DebeziumValue[Atable]): (String, String) =
       (a.payload.after.foldMap(_.foo), b.payload.after.foldMap(_.bar))
 
     def run: IO[Unit] =
-      Platform.streamsResource[IO](topology, props, Duration.ofSeconds(2)).use(Platform.runStreams[IO])
+      topology.flatMap(top =>
+        Platform.streamsResource[IO](top, props, Duration.ofSeconds(2)).use(Platform.runStreams[IO])
+      )
   }
 
   object Consumer {
@@ -156,13 +167,13 @@ class EndToEndTests extends munit.FunSuite {
     implicit def fs2KafkaDeserializer[A: Decoder]: Deserializer[IO, A] =
       Deserializer.delegate[IO, A](CirceSerdes.deserializerForCirce).suspend
 
-    val settings = ConsumerSettings[IO, DebeziumKey[Int], (String, String)]
+    val settings = ConsumerSettings[IO, DebeziumKey[Int], (String, String, String)]
       .withAllowAutoCreateTopics(true)
       .withAutoOffsetReset(AutoOffsetReset.Earliest)
       .withBootstrapServers(kafkaHost)
       .withGroupId("group")
 
-    def consume: IO[(String, String)] =
+    def consume: IO[(String, String, String)] =
       consumerStream(settings)
         .evalTap(_.subscribeTo(outputTopic))
         .flatMap(c => c.stream)
@@ -184,4 +195,10 @@ case class Btable(id: Int, a_id: Int, bar: String)
 object Btable {
   implicit val decoder: Decoder[Btable] = Decoder.forProduct3("id", "a_id", "bar")(Btable.apply)
   implicit val encoder: Encoder[Btable] = Encoder.forProduct3("id", "a_id", "bar")(b => (b.id, b.a_id, b.bar))
+}
+
+case class Ctable(id: Int, b_id: Int, baz: String)
+object Ctable {
+  implicit val decoder: Decoder[Ctable] = Decoder.forProduct3("id", "b_id", "baz")(Ctable.apply)
+  implicit val encoder: Encoder[Ctable] = Encoder.forProduct3("id", "b_id", "baz")(c => (c.id, c.b_id, c.baz))
 }
