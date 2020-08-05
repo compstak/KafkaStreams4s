@@ -1,11 +1,9 @@
 package compstak.kafkastream4s.avro4s
 
 import org.apache.kafka.common.serialization.Serde
-import com.sksamuel.avro4s.kafka.GenericSerde
 import com.sksamuel.avro4s.SchemaFor
 import com.sksamuel.avro4s.Encoder
 import com.sksamuel.avro4s.Decoder
-import shapeless.Generic
 import compstak.kafkastreams4s.avro4s.Avro4sSerdes
 import compstak.kafkastreams4s.Codec
 

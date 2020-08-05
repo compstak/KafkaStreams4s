@@ -1,7 +1,6 @@
 package compstak.kafkastreams4s
 
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
-import org.apache.kafka.common.header.Headers
 import compstak.kafkastreams4s.implicits._
 import org.apache.kafka.streams.kstream.{Consumed, Grouped, Materialized, Produced}
 import org.apache.kafka.streams.state.KeyValueStore

@@ -1,6 +1,6 @@
 package compstak.kafkastreams4s
 
-import cats.effect.{Async, IO, Resource, Sync}
+import cats.effect.{Async, Resource, Sync}
 import org.apache.kafka.streams.{KafkaStreams, Topology}
 import org.apache.kafka.streams.KafkaStreams.State
 import java.util.Properties
