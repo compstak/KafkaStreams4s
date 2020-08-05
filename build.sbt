@@ -38,6 +38,7 @@ val KafkaVersion = "2.5.0"
 val KafkaConnectHttp4sVersion = "0.5.0"
 val MunitVersion = "0.7.9"
 val ShapelessVersion = "2.3.3"
+val VulcanVersion = "1.1.0"
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -141,6 +142,17 @@ lazy val testing = (project in file("testing"))
     testFrameworks += new TestFramework("munit.Framework")
   )
   .dependsOn(core, circe, avro4s, debezium)
+
+lazy val vulcan = (project in file("vulcan"))
+  .settings(commonSettings)
+  .settings(
+    name := "kafka-streams4s-vulcan",
+    libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams" % KafkaVersion,
+      "com.github.fd4s" %% "vulcan" % VulcanVersion
+    )
+  )
+  .dependsOn(core)
 
 lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
