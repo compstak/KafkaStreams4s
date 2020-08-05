@@ -24,4 +24,7 @@ object Platform {
 
     streams.start()
   }
+
+  def run[F[_]: Async](topo: Topology, props: Properties, timeout: Duration): F[Unit] =
+    streamsResource[F](topo, props, timeout).use(runStreams[F])
 }
