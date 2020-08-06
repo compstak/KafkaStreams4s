@@ -6,7 +6,6 @@ import com.sksamuel.avro4s.Encoder
 import com.sksamuel.avro4s.Decoder
 import org.apache.kafka.streams.kstream.KTable
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.kafka.streams.kstream.Consumed
 
 package object avro4s {
   type Avro4sTable[K, V] = STable[Avro4sCodec, K, V]
