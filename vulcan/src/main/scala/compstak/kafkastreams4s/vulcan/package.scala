@@ -10,10 +10,10 @@ package object vulcan {
 
   object VulcanTable {
 
-    def fromKTable[K >: Null: VulcanCodec, V >: Null: VulcanCodec](ktable: KTable[K, V]): VulcanTable[K, V] =
+    def fromKTable[K : VulcanCodec, V : VulcanCodec](ktable: KTable[K, V]): VulcanTable[K, V] =
       new VulcanTable[K, V](ktable)
 
-    def apply[K >: Null: VulcanCodec, V >: Null: VulcanCodec](sb: StreamsBuilder,topicName: String): VulcanTable[K, V] =
+    def apply[K : VulcanCodec, V : VulcanCodec](sb: StreamsBuilder,topicName: String): VulcanTable[K, V] =
       fromKTable(sb.table(topicName, VulcanSerdes.consumedForVulcan[K, V]))
 
   }

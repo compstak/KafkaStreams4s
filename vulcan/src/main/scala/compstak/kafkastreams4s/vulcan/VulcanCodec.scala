@@ -7,7 +7,7 @@ import vulcan.{Codec => VCodec}
 trait VulcanCodec[A] {
   implicit def vcodec: VCodec[A]
 
-  def serde: Serde[A] = CirceSerdes.serdeForCirce[A]
+  def serde: Serde[A] = VulcanSerdes.serdeForVulcan[A]
 }
 
 object VulcanCodec {
@@ -15,9 +15,8 @@ object VulcanCodec {
 
   implicit def cVulcanCodec: Codec[VulcanCodec] = new Codec[VulcanCodec] {
     def serde[A: VulcanCodec]: Serde[A] = apply[A].serde
-    def optionSerde[A](implicit ev: VulcanCodec[A]): VulcanCodec[Option[A]] = new VulcanCodec[Option[A]] {
-      implicit def encoder: Encoder[Option[A]] = Encoder.encodeOption(ev.encoder)
-      implicit def decoder: Decoder[Option[A]] = Decoder.decodeOption(ev.decoder)
+    def optionSerde[A : VulcanCodec]: VulcanCodec[Option[A]] = new VulcanCodec[Option[A]] {
+      implicit def vcodec: VCodec[Option[A]] = VCodec.option(apply[A].vcodec)
     }
   }
 
