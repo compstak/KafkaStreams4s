@@ -13,7 +13,7 @@ trait VulcanCodec[A] {
 object VulcanCodec {
   def apply[A: VulcanCodec]: VulcanCodec[A] = implicitly
 
-  implicit def cVulcanCodec: Codec[VulcanCodec] =
+  implicit val cVulcanCodec: Codec[VulcanCodec] =
     new Codec[VulcanCodec] {
       def serde[A: VulcanCodec]: Serde[A] = apply[A].serde
       def optionSerde[A: VulcanCodec]: VulcanCodec[Option[A]] =
