@@ -27,15 +27,17 @@ inThisBuild(
 
 enablePlugins(DockerComposePlugin)
 
+val Avro4sVersion = "3.1.1"
 val CatsEffectVersion = "2.1.3"
 val CirceVersion = "0.13.0"
-val CirceDebeziumVersion = "0.10.0"
+val CirceDebeziumVersion = "0.13.0"
 val DoobieVersion = "0.8.8"
 val FS2KafkaVersion = "1.0.0"
 val Http4sVersion = "0.21.6"
 val KafkaVersion = "2.5.0"
 val KafkaConnectHttp4sVersion = "0.5.0"
 val MunitVersion = "0.7.9"
+val ShapelessVersion = "2.3.3"
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -49,7 +51,7 @@ scalacOptions ++= Seq(
 
 addCommandAlias("fmtAll", ";scalafmt; test:scalafmt; scalafmtSbt")
 addCommandAlias("fmtCheck", ";scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
-addCommandAlias("validate", ";fmtCheck; test; it:compile")
+addCommandAlias("validate", ";fmtCheck; test; it:compile; docs/mdoc")
 
 lazy val commonSettings = Seq(
   crossScalaVersions := supportedScalaVersions,
@@ -83,6 +85,17 @@ lazy val circe = (project in file("circe"))
   )
   .dependsOn(core)
 
+lazy val avro4s = (project in file("avro"))
+  .settings(commonSettings)
+  .settings(
+    name := "kafka-streams4s-avro4s",
+    libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams" % KafkaVersion,
+      "com.sksamuel.avro4s" %% "avro4s-kafka" % Avro4sVersion
+    )
+  )
+  .dependsOn(core)
+
 lazy val debezium = (project in file("debezium"))
   .settings(commonSettings)
   .settings(
@@ -94,6 +107,25 @@ lazy val debezium = (project in file("debezium"))
   )
   .dependsOn(circe)
 
+lazy val shapeless = (project in file("shapeless"))
+  .settings(commonSettings)
+  .settings(
+    name := "kafka-streams4s-shapeless",
+    libraryDependencies += "com.chuusai" %% "shapeless" % "2.3.3"
+  )
+  .dependsOn(debezium)
+
+lazy val testing = (project in file("testing"))
+  .configs(IntegrationTest)
+  .settings(commonSettings)
+  .settings(
+    name := "kafka-streams4s-testing",
+    libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams-test-utils" % KafkaVersion
+    )
+  )
+  .dependsOn(core)
+
 lazy val tests = (project in file("tests"))
   .configs(IntegrationTest)
   .settings(commonSettings)
@@ -101,23 +133,34 @@ lazy val tests = (project in file("tests"))
   .settings(
     name := "kafka-streams4s-tests",
     libraryDependencies ++= Seq(
-      "org.scalameta" %% "munit" % MunitVersion % Test,
-      "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
       "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion % IntegrationTest,
+      "org.scalameta" %% "munit" % MunitVersion % "test, it",
+      "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
       "io.circe" %% "circe-literal" % CirceVersion % IntegrationTest,
       "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
-      "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest,
-      "org.scalameta" %% "munit" % MunitVersion % IntegrationTest
+      "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest
     ),
     Defaults.itSettings,
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
   )
-  .dependsOn(core, circe, debezium)
+  .dependsOn(core, circe, avro4s, debezium, shapeless, testing)
+
+lazy val docs = (project in file("documentation"))
+  .settings(commonSettings)
+  .settings(noPublishSettings)
+  .settings(
+    mdocVariables := Map("VERSION" -> version.value),
+    mdocIn := new java.io.File("docs/src"),
+    mdocOut := new java.io.File("docs/out"),
+    crossScalaVersions := List(scala213)
+  )
+  .dependsOn(core, circe, debezium, avro4s, shapeless, testing)
+  .enablePlugins(MdocPlugin)
 
 lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(name := "kafka-streams4s")
-  .dependsOn(core, circe, debezium, tests)
-  .aggregate(core, circe, debezium, tests)
+  .dependsOn(core, circe, debezium, avro4s, shapeless, testing, tests, docs)
+  .aggregate(core, circe, debezium, avro4s, shapeless, testing, tests, docs)

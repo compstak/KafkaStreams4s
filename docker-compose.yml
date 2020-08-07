@@ -18,7 +18,7 @@ services:
       - 2888:2888
       - 3888:3888
   kafka:
-    image: confluentinc/cp-kafka:5.4.0
+    image: confluentinc/cp-kafka:5.5.1
     ports:
       - 9092:9092
     links:
@@ -31,6 +31,7 @@ services:
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       - KAFKA_METRICS_REPORTERS=io.confluent.metrics.reporter.ConfluentMetricsReporter
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
   connect:
     image: debezium/connect:${DEBEZIUM_VERSION:-1.2}
     ports:

@@ -1,6 +1,6 @@
 package compstak.kafkastreams4s
 
-import cats.effect.{Async, IO, Resource, Sync}
+import cats.effect.{Async, Resource, Sync}
 import org.apache.kafka.streams.{KafkaStreams, Topology}
 import org.apache.kafka.streams.KafkaStreams.State
 import java.util.Properties
@@ -24,4 +24,7 @@ object Platform {
 
     streams.start()
   }
+
+  def run[F[_]: Async](topo: Topology, props: Properties, timeout: Duration): F[Unit] =
+    streamsResource[F](topo, props, timeout).use(runStreams[F])
 }
