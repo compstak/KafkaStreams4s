@@ -13,9 +13,10 @@ trait DebeziumPrimitiveType[A] {
 }
 
 object DebeziumPrimitiveType {
-  def fromPrimitive[A](s: DebeziumSchemaPrimitive): DebeziumPrimitiveType[A] = new DebeziumPrimitiveType[A] {
-    def debeziumType: DebeziumSchemaPrimitive = s
-  }
+  def fromPrimitive[A](s: DebeziumSchemaPrimitive): DebeziumPrimitiveType[A] =
+    new DebeziumPrimitiveType[A] {
+      def debeziumType: DebeziumSchemaPrimitive = s
+    }
 
   def apply[A: DebeziumPrimitiveType]: DebeziumPrimitiveType[A] = implicitly
 

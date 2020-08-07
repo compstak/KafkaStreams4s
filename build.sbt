@@ -30,7 +30,7 @@ enablePlugins(DockerComposePlugin)
 val Avro4sVersion = "3.1.1"
 val CatsEffectVersion = "2.1.3"
 val CirceVersion = "0.13.0"
-val CirceDebeziumVersion = "0.12.0"
+val CirceDebeziumVersion = "0.13.0"
 val DoobieVersion = "0.8.8"
 val FS2KafkaVersion = "1.0.0"
 val Http4sVersion = "0.21.6"
@@ -129,6 +129,7 @@ lazy val testing = (project in file("testing"))
 lazy val tests = (project in file("tests"))
   .configs(IntegrationTest)
   .settings(commonSettings)
+  .settings(noPublishSettings)
   .settings(
     name := "kafka-streams4s-tests",
     libraryDependencies ++= Seq(
