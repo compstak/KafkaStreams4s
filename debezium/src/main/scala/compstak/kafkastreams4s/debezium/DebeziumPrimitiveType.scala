@@ -13,15 +13,18 @@ trait DebeziumPrimitiveType[A] {
 }
 
 object DebeziumPrimitiveType {
-  def fromPrimitive[A](s: DebeziumSchemaPrimitive): DebeziumPrimitiveType[A] = new DebeziumPrimitiveType[A] {
-    def debeziumType: DebeziumSchemaPrimitive = s
-  }
+  def fromPrimitive[A](s: DebeziumSchemaPrimitive): DebeziumPrimitiveType[A] =
+    new DebeziumPrimitiveType[A] {
+      def debeziumType: DebeziumSchemaPrimitive = s
+    }
 
   def apply[A: DebeziumPrimitiveType]: DebeziumPrimitiveType[A] = implicitly
 
+  implicit val booleanType: DebeziumPrimitiveType[Boolean] = fromPrimitive(DebeziumSchemaPrimitive.Boolean)
   implicit val intType: DebeziumPrimitiveType[Int] = fromPrimitive(DebeziumSchemaPrimitive.Int32)
   implicit val shortType: DebeziumPrimitiveType[Short] = fromPrimitive(DebeziumSchemaPrimitive.Int16)
   implicit val longType: DebeziumPrimitiveType[Long] = fromPrimitive(DebeziumSchemaPrimitive.Int64)
+  implicit val doubleType: DebeziumPrimitiveType[Double] = fromPrimitive(DebeziumSchemaPrimitive.Float64)
   implicit val stringType: DebeziumPrimitiveType[String] = fromPrimitive(DebeziumSchemaPrimitive.String)
   implicit val uuidType: DebeziumPrimitiveType[ju.UUID] = fromPrimitive(DebeziumSchemaPrimitive.String)
 
