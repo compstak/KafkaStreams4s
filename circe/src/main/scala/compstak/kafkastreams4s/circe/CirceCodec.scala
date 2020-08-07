@@ -14,13 +14,15 @@ trait CirceCodec[A] {
 object CirceCodec {
   def apply[A: CirceCodec]: CirceCodec[A] = implicitly
 
-  implicit def ccCirceCodec: Codec[CirceCodec] = new Codec[CirceCodec] {
-    def serde[A: CirceCodec]: Serde[A] = apply[A].serde
-    def optionSerde[A](implicit ev: CirceCodec[A]): CirceCodec[Option[A]] = new CirceCodec[Option[A]] {
-      implicit def encoder: Encoder[Option[A]] = Encoder.encodeOption(ev.encoder)
-      implicit def decoder: Decoder[Option[A]] = Decoder.decodeOption(ev.decoder)
+  implicit def ccCirceCodec: Codec[CirceCodec] =
+    new Codec[CirceCodec] {
+      def serde[A: CirceCodec]: Serde[A] = apply[A].serde
+      def optionSerde[A](implicit ev: CirceCodec[A]): CirceCodec[Option[A]] =
+        new CirceCodec[Option[A]] {
+          implicit def encoder: Encoder[Option[A]] = Encoder.encodeOption(ev.encoder)
+          implicit def decoder: Decoder[Option[A]] = Decoder.decodeOption(ev.decoder)
+        }
     }
-  }
 
   implicit def circeCodecFromEncoderDecoder[A](implicit e: Encoder[A], d: Decoder[A]): CirceCodec[A] =
     new CirceCodec[A] {

@@ -76,7 +76,8 @@ object JoinTables {
   )(
     f: V1 => K2
   )(g: (V1, V2) => Z): CirceTable[K1, Z] =
-    a.join(b)(v1 => DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName))
+    a.join(b)(v1 =>
+      DebeziumKey(replicateJsonKeySchema[K2](idName, topicName), DebeziumKeyPayload.simple(f(v1), idName))
     )(g)
 
   def joinOption[K1: Encoder: Decoder, K2: DebeziumPrimitiveType, V1, V2, Z: Encoder: Decoder](
