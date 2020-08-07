@@ -27,16 +27,16 @@ object VulcanSerdes {
 
 }
 
-class VulcanSerdeCreation[T: VCodec] extends Serde[T]{
+class VulcanSerdeCreation[T: VCodec] extends Serde[T] {
   override def deserializer(): Deserializer[T] = new Deserializer[T] {
     override def deserialize(topic: String, data: Array[Byte]): T = {
       val codec = implicitly[VCodec[T]]
-      codec.decode(data, codec.schema.getOrElse(throw new Exception)).getOrElse(throw new Exception)
+      codec.schema.flatMap(schema => codec.decode(data, schema)).fold(error => throw error.throwable, identity)
     }
   }
   override def serializer(): Serializer[T] = new Serializer[T] {
     override def serialize(topic: String, data: T): Array[Byte] = {
-      VCodec.toBinary(data).getOrElse(throw new Exception)
+      VCodec.toBinary(data).fold(error =>  throw error.throwable, identity)
     }
   }
 }
