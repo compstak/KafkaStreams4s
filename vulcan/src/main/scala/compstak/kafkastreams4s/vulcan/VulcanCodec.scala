@@ -13,11 +13,18 @@ trait VulcanCodec[A] {
 object VulcanCodec {
   def apply[A: VulcanCodec]: VulcanCodec[A] = implicitly
 
-  implicit def cVulcanCodec: Codec[VulcanCodec] = new Codec[VulcanCodec] {
-    def serde[A: VulcanCodec]: Serde[A] = apply[A].serde
-    def optionSerde[A : VulcanCodec]: VulcanCodec[Option[A]] = new VulcanCodec[Option[A]] {
-      implicit def vcodec: VCodec[Option[A]] = VCodec.option(apply[A].vcodec)
+  implicit def cVulcanCodec: Codec[VulcanCodec] =
+    new Codec[VulcanCodec] {
+      def serde[A: VulcanCodec]: Serde[A] = apply[A].serde
+      def optionSerde[A: VulcanCodec]: VulcanCodec[Option[A]] =
+        new VulcanCodec[Option[A]] {
+          implicit def vcodec: VCodec[Option[A]] = VCodec.option(apply[A].vcodec)
+        }
     }
-  }
+
+  implicit def vulcanCodecFromVCodec[A](implicit V: VCodec[A]): VulcanCodec[A] =
+    new VulcanCodec[A] {
+      implicit def vcodec: VCodec[A] = V
+    }
 
 }
