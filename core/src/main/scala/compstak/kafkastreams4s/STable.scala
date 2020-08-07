@@ -77,10 +77,13 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
   def transform[K2: C, V2: C](f: (K, V) => (K2, V2)): STable[C, K2, V2] =
     fromKTable(
       toKTable
-        .groupBy({ (k: K, v: V) =>
-          val (k2, v2) = f(k, v)
-          KeyValue.pair(k2, v2)
-        }: KeyValueMapper[K, V, KeyValue[K2, V2]], groupedForCodec[C, K2, V2])
+        .groupBy(
+          { (k: K, v: V) =>
+            val (k2, v2) = f(k, v)
+            KeyValue.pair(k2, v2)
+          }: KeyValueMapper[K, V, KeyValue[K2, V2]],
+          groupedForCodec[C, K2, V2]
+        )
         .reduce((acc: V2, cur: V2) => cur, (acc: V2, old: V2) => acc)
     )
 
@@ -162,10 +165,13 @@ class STable[C[_]: Codec, K: C, V: C](val toKTable: KTable[K, V]) {
   def scanWith[K2: C, V2: C](f: (K, V) => (K2, V2))(g: (V2, V2) => V2): STable[C, K2, V2] =
     fromKTable(
       toKTable
-        .groupBy({ (k: K, v: V) =>
-          val (k2, v2) = f(k, v)
-          KeyValue.pair(k2, v2)
-        }: KeyValueMapper[K, V, KeyValue[K2, V2]], groupedForCodec[C, K2, V2])
+        .groupBy(
+          { (k: K, v: V) =>
+            val (k2, v2) = f(k, v)
+            KeyValue.pair(k2, v2)
+          }: KeyValueMapper[K, V, KeyValue[K2, V2]],
+          groupedForCodec[C, K2, V2]
+        )
         .reduce((acc: V2, cur: V2) => g(acc, cur), (acc: V2, old: V2) => acc)
     )
 
