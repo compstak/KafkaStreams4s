@@ -29,7 +29,7 @@ class VulcanSerdeCreation[T: VCodec] extends Serde[T] {
     new Deserializer[T] {
       override def deserialize(topic: String, data: Array[Byte]): T = {
         val codec = implicitly[VCodec[T]]
-        codec.schema.flatMap(schema => codec.decode(data, schema)).fold(error => throw error.throwable, identity)
+        codec.schema.flatMap(schema => VCodec.fromBinary(data, schema)).fold(error => throw error.throwable, identity)
       }
     }
   override def serializer(): Serializer[T] =
