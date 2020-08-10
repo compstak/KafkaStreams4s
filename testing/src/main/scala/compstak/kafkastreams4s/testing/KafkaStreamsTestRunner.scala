@@ -63,7 +63,7 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
 object KafkaStreamsTestRunner {
 
   def testDriverResource[F[_]: Sync](topo: Topology): Resource[F, TopologyTestDriver] =
-    Resource.make(Sync[F].delay(new TopologyTestDriver(topo, props)))(d => Sync[F].delay(d.close))
+    Resource.make(props.map(p => new TopologyTestDriver(topo, p)))(d => Sync[F].delay(d.close))
 
   def inputTestTable[F[_], C[_]]: InputPartiallyAppliedF[F, C] = new InputPartiallyAppliedF
 
@@ -88,12 +88,13 @@ object KafkaStreamsTestRunner {
     Sync[F].delay(out.readValuesToList.asScala.toList)
   }
 
-  def props: ju.Properties = {
-    val p = new ju.Properties
-    p.put(StreamsConfig.APPLICATION_ID_CONFIG, UUID.randomUUID().toString)
-    p.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
-    p
-  }
+  def props[F[_]: Sync]: F[ju.Properties] =
+    Sync[F].delay {
+      val p = new ju.Properties
+      p.put(StreamsConfig.APPLICATION_ID_CONFIG, UUID.randomUUID().toString)
+      p.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
+      p
+    }
 
   def run[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
     f: STable[C, KA, A] => STable[C, KB, B],
