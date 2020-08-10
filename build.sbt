@@ -145,7 +145,7 @@ lazy val tests = (project in file("tests"))
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
   )
-  .dependsOn(core, circe, avro4s, debezium, shapeless, testing)
+  .dependsOn(core, circe, avro4s, debezium, shapeless, vulcan, testing)
 
 lazy val docs = (project in file("documentation"))
   .settings(commonSettings)
