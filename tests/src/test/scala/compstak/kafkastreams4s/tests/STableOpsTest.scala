@@ -13,11 +13,17 @@ import cats.effect.Resource
 
 class STableOpsTest extends munit.FunSuite {
 
+  val prop = KafkaStreamsTestRunner.props("kafka-streams4s-test")
+
   test("STable scanWith should work as expected") {
     val input = List("foo" -> 1, "bar" -> 2, "baz" -> 3, "qux" -> 2)
 
     KafkaStreamsTestRunner
-      .run[IO, CirceCodec, String, Int, Int, String](_.scanWith((k, v) => (v, k))(_ + _), input: _*)
+      .run[IO, CirceCodec, String, Int, Int, String](
+        prop,
+        _.scanWith((k, v) => (v, k))(_ + _),
+        input: _*
+      )
       .map(out => assertEquals(Map(1 -> "foo", 2 -> "barqux", 3 -> "baz"), out))
       .unsafeToFuture()
   }
@@ -36,7 +42,7 @@ class STableOpsTest extends munit.FunSuite {
 
     Resource
       .liftF(result.to[IO](out) >> IO(sb.build))
-      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo, prop))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
           KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "b", inputB: _*) >>
@@ -62,7 +68,7 @@ class STableOpsTest extends munit.FunSuite {
 
     Resource
       .liftF(result.to[IO](out) >> IO(sb.build))
-      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo, prop))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
           KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "b", inputB: _*) >>
@@ -88,7 +94,7 @@ class STableOpsTest extends munit.FunSuite {
 
     Resource
       .liftF(result.to[IO](out) >> IO(sb.build))
-      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo, prop))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
           KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "b", inputB: _*) >>
@@ -114,7 +120,7 @@ class STableOpsTest extends munit.FunSuite {
 
     Resource
       .liftF(result.to[IO](out) >> IO(sb.build))
-      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo, prop))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
           KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "b", inputB: _*) >>
@@ -140,7 +146,7 @@ class STableOpsTest extends munit.FunSuite {
 
     Resource
       .liftF(result.to[IO](out) >> IO(sb.build))
-      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo, prop))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
           KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "b", inputB: _*) >>
@@ -156,7 +162,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List("foo" -> 1, "bar" -> 2, "baz" -> 3, "qux" -> 4)
 
     KafkaStreamsTestRunner
-      .run[IO, CirceCodec, String, Int, Int, Int](_.keyBy(identity), input: _*)
+      .run[IO, CirceCodec, String, Int, Int, Int](
+        prop,
+        _.keyBy(identity),
+        input: _*
+      )
       .map(out => assertEquals(Map(1 -> 1, 2 -> 2, 3 -> 3, 4 -> 4), out))
       .unsafeToFuture()
   }
@@ -165,7 +175,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List("foo" -> 1, "barr" -> 2, "bazzz" -> 3, "quxxxx" -> 4)
 
     KafkaStreamsTestRunner
-      .run[IO, CirceCodec, String, Int, Int, Int](_.reKey(_.length), input: _*)
+      .run[IO, CirceCodec, String, Int, Int, Int](
+        prop,
+        _.reKey(_.length),
+        input: _*
+      )
       .map(out => assertEquals(Map(3 -> 1, 4 -> 2, 5 -> 3, 6 -> 4), out))
       .unsafeToFuture()
   }
@@ -174,7 +188,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List("foo" -> 1, "barr" -> 2, "bazzz" -> 3, "quxxxx" -> 4)
 
     KafkaStreamsTestRunner
-      .run[IO, CirceCodec, String, Int, Int, Int](_.transform((s, i) => (i + 3, s.length)), input: _*)
+      .run[IO, CirceCodec, String, Int, Int, Int](
+        prop,
+        _.transform((s, i) => (i + 3, s.length)),
+        input: _*
+      )
       .map(out => assertEquals(Map(4 -> 3, 5 -> 4, 6 -> 5, 7 -> 6), out))
       .unsafeToFuture()
   }
@@ -183,7 +201,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List("foo", "barr", "bazzz", "quxxxx")
 
     KafkaStreamsTestRunner
-      .runList[IO, CirceCodec, String, Int](_.scan(0)((acc, cur) => acc + cur.length), input: _*)
+      .runList[IO, CirceCodec, String, Int](
+        prop,
+        _.scan(0)((acc, cur) => acc + cur.length),
+        input: _*
+      )
       .map(out => assertEquals(Set(3, 7, 12, 18), out.toSet))
       .unsafeToFuture()
   }
@@ -192,7 +214,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List(1, 2, 3, 4)
 
     KafkaStreamsTestRunner
-      .runList[IO, CirceCodec, Int, Int](_.scan1(_ + _), input: _*)
+      .runList[IO, CirceCodec, Int, Int](
+        prop,
+        _.scan1(_ + _),
+        input: _*
+      )
       .map(out => assertEquals(Set(1, 3, 6, 10), out.toSet))
       .unsafeToFuture()
   }
@@ -201,7 +227,7 @@ class STableOpsTest extends munit.FunSuite {
     val input = List(1, 2, 3, 4)
 
     KafkaStreamsTestRunner
-      .runList[IO, CirceCodec, Int, Int](_.map(_ + 1), input: _*)
+      .runList[IO, CirceCodec, Int, Int](prop, _.map(_ + 1), input: _*)
       .map(out => assertEquals(out, List(2, 3, 4, 5)))
       .unsafeToFuture()
   }
@@ -210,7 +236,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List(1, 2, 3, 4)
 
     KafkaStreamsTestRunner
-      .runList[IO, CirceCodec, Int, Int](_.mapWithKey((k, v) => v + 1), input: _*)
+      .runList[IO, CirceCodec, Int, Int](
+        prop,
+        _.mapWithKey((k, v) => v + 1),
+        input: _*
+      )
       .map(out => assertEquals(out, List(2, 3, 4, 5)))
       .unsafeToFuture()
   }
@@ -219,7 +249,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List("1", "2", "three", "3")
 
     KafkaStreamsTestRunner
-      .runList[IO, CirceCodec, String, Int](_.mapFilter(s => Try(s.toInt).toOption), input: _*)
+      .runList[IO, CirceCodec, String, Int](
+        prop,
+        _.mapFilter(s => Try(s.toInt).toOption),
+        input: _*
+      )
       .map(out => assertEquals(out, List(1, 2, 3)))
       .unsafeToFuture()
   }
@@ -229,6 +263,7 @@ class STableOpsTest extends munit.FunSuite {
 
     KafkaStreamsTestRunner
       .run[IO, CirceCodec, Int, String, Int, Int](
+        prop,
         _.mapFilterWithKey((k, v) => Try(v.toInt).toOption.filter(_ == k)),
         input: _*
       )
@@ -240,7 +275,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List(Option("foo"), None, Option("bar"))
 
     KafkaStreamsTestRunner
-      .runList[IO, CirceCodec, Option[String], String](_.collect { case Some(s) => s }, input: _*)
+      .runList[IO, CirceCodec, Option[String], String](
+        prop,
+        _.collect { case Some(s) => s },
+        input: _*
+      )
       .map(out => assertEquals(out, List("foo", "bar")))
       .unsafeToFuture()
   }
@@ -249,7 +288,11 @@ class STableOpsTest extends munit.FunSuite {
     val input = List(Option("foo"), None, Option("bar"))
 
     KafkaStreamsTestRunner
-      .runList[IO, CirceCodec, Option[String], String](_.flattenOption, input: _*)
+      .runList[IO, CirceCodec, Option[String], String](
+        prop,
+        _.flattenOption,
+        input: _*
+      )
       .map(out => assertEquals(out, List("foo", "bar")))
       .unsafeToFuture()
   }

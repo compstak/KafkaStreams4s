@@ -3,6 +3,7 @@ package compstak.kafkastreams4s.testing
 import org.apache.kafka.streams.Topology
 import cats.effect.ConcurrentEffect
 import cats.effect.ContextShift
+
 import scala.util.Random
 import cats.effect.Sync
 import cats.implicits._
@@ -10,16 +11,20 @@ import cats.effect.Timer
 import cats.effect.implicits._
 import java.time.Duration
 import java.{util => ju}
+
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.StreamsBuilder
+
 import scala.concurrent.duration._
 import org.apache.kafka.streams.TopologyTestDriver
 import cats.effect.Resource
+
 import scala.collection.JavaConverters._
 import compstak.kafkastreams4s._
 import org.apache.kafka.streams.TestOutputTopic
 
 class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
+  properties: ju.Properties,
   f: STable[C, KA, A] => STable[C, KB, B]
 ) {
 
@@ -32,7 +37,7 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
       topicIn <- randomString
       topicOut <- randomString
       topo <- topology(topicIn, topicOut)
-      bs <- testDriverResource[F](topo).use(driver =>
+      bs <- testDriverResource[F](topo, properties).use(driver =>
         inputTestTable[F, C](driver, topicIn, input: _*) >> outputTestTable[F, C, KB, B](driver, topicOut)
       )
     } yield bs
@@ -42,7 +47,7 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
       topicIn <- randomString
       topicOut <- randomString
       topo <- topology(topicIn, topicOut)
-      bs <- testDriverResource[F](topo).use(driver =>
+      bs <- testDriverResource[F](topo, properties).use(driver =>
         inputTestTable[F, C](driver, topicIn, input.toList.tupleLeft(ev("key")): _*) >>
           outputTestTableList[F, C, KB, B](driver, topicOut)
       )
@@ -57,8 +62,8 @@ class KafkaStreamsTestRunner[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
 
 object KafkaStreamsTestRunner {
 
-  def testDriverResource[F[_]: Sync](topo: Topology): Resource[F, TopologyTestDriver] =
-    Resource.make(Sync[F].delay(new TopologyTestDriver(topo, props)))(d => Sync[F].delay(d.close))
+  def testDriverResource[F[_]: Sync](topo: Topology, properties: ju.Properties): Resource[F, TopologyTestDriver] =
+    Resource.make(Sync[F].delay(new TopologyTestDriver(topo, properties)))(d => Sync[F].delay(d.close))
 
   def inputTestTable[F[_], C[_]]: InputPartiallyAppliedF[F, C] = new InputPartiallyAppliedF
 
@@ -83,22 +88,24 @@ object KafkaStreamsTestRunner {
     Sync[F].delay(out.readValuesToList.asScala.toList)
   }
 
-  def props: ju.Properties = {
+  def props(appId: String): ju.Properties = {
     val p = new ju.Properties
-    p.put(StreamsConfig.APPLICATION_ID_CONFIG, "kafkastreams4s-test")
+    p.put(StreamsConfig.APPLICATION_ID_CONFIG, appId)
     p.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
     p
   }
 
   def run[F[_]: Sync, C[_]: Codec, KA: C, A: C, KB: C, B: C](
+    properties: ju.Properties,
     f: STable[C, KA, A] => STable[C, KB, B],
     input: (KA, A)*
   ): F[Map[KB, B]] =
-    new KafkaStreamsTestRunner[F, C, KA, A, KB, B](f).run(input: _*)
+    new KafkaStreamsTestRunner[F, C, KA, A, KB, B](properties, f).run(input: _*)
 
   def runList[F[_]: Sync, C[_]: Codec, A: C, B: C](
+    properties: ju.Properties,
     f: STable[C, String, A] => STable[C, String, B],
     input: A*
   )(implicit C: C[String]): F[List[B]] =
-    new KafkaStreamsTestRunner[F, C, String, A, String, B](f).runList(input: _*)
+    new KafkaStreamsTestRunner[F, C, String, A, String, B](properties, f).runList(input: _*)
 }

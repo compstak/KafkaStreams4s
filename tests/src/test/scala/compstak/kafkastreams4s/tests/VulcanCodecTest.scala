@@ -7,6 +7,7 @@ import compstak.kafkastreams4s.vulcan.{VulcanCodec, VulcanTable}
 import org.apache.kafka.streams.StreamsBuilder
 
 class VulcanCodecTest extends munit.FunSuite {
+
   test("Using `mapCodec` should serialize and deserialize using the VulcanCodec") {
     val input = Map("foo" -> 1, "bar" -> 2, "baz" -> 3, "qux" -> 2)
 
@@ -16,7 +17,9 @@ class VulcanCodecTest extends munit.FunSuite {
 
     Resource
       .liftF(result.to[IO]("out") >> IO(sb.build))
-      .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
+      .flatMap(topo =>
+        KafkaStreamsTestRunner.testDriverResource[IO](topo, KafkaStreamsTestRunner.props("kafka-streams4s-test-vulcan"))
+      )
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, VulcanCodec](driver, "origin", input.toList: _*) >>
           KafkaStreamsTestRunner
