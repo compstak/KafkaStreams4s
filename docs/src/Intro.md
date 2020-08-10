@@ -64,14 +64,11 @@ Now, all that's left is to direct the result into an output topic `example.outpu
 import cats.implicits._
 import cats.effect.IO
 import compstak.kafkastreams4s.Platform
-import org.apache.kafka.streams.{StreamsConfig, Topology}
+import org.apache.kafka.streams.Topology
 import java.util.Properties
 import java.time.Duration
 
-val props = new Properties
-props.put(StreamsConfig.APPLICATION_ID_CONFIG, "appId")
-props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
-
+val props = new Properties //in real code add the desired configuration to this object.
 
 val topology: IO[Topology] = result.to[IO]("example.output") >> IO(sb.build())
 
@@ -96,7 +93,7 @@ import compstak.kafkastreams4s.testing.KafkaStreamsTestRunner
 import org.apache.kafka.streams.TopologyTestDriver
 
 val driver: Resource[IO, TopologyTestDriver] = 
-  Resource.liftF(topology).flatMap(top => KafkaStreamsTestRunner.testDriverResource[IO](top, props))
+  Resource.liftF(topology).flatMap(KafkaStreamsTestRunner.testDriverResource[IO])
 
 ```
 
