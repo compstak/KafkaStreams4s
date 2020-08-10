@@ -3,18 +3,23 @@ package compstak.kafkastreams4s.testing
 import org.apache.kafka.streams.Topology
 import cats.effect.ConcurrentEffect
 import cats.effect.ContextShift
+
 import scala.util.Random
 import cats.effect.Sync
 import cats.implicits._
 import cats.effect.Timer
 import cats.effect.implicits._
 import java.time.Duration
+import java.util.UUID
 import java.{util => ju}
+
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.StreamsBuilder
+
 import scala.concurrent.duration._
 import org.apache.kafka.streams.TopologyTestDriver
 import cats.effect.Resource
+
 import scala.collection.JavaConverters._
 import compstak.kafkastreams4s._
 import org.apache.kafka.streams.TestOutputTopic
@@ -85,7 +90,7 @@ object KafkaStreamsTestRunner {
 
   def props: ju.Properties = {
     val p = new ju.Properties
-    p.put(StreamsConfig.APPLICATION_ID_CONFIG, "kafkastreams4s-test")
+    p.put(StreamsConfig.APPLICATION_ID_CONFIG, UUID.randomUUID().toString)
     p.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
     p
   }
