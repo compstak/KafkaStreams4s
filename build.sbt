@@ -38,6 +38,7 @@ val KafkaVersion = "2.6.0"
 val KafkaConnectHttp4sVersion = "0.5.0"
 val MunitVersion = "0.7.9"
 val ShapelessVersion = "2.3.3"
+val VulcanVersion = "1.1.0"
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -144,7 +145,7 @@ lazy val tests = (project in file("tests"))
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
   )
-  .dependsOn(core, circe, avro4s, debezium, shapeless, testing)
+  .dependsOn(core, circe, avro4s, debezium, shapeless, vulcan, testing)
 
 lazy val docs = (project in file("documentation"))
   .settings(commonSettings)
@@ -158,9 +159,20 @@ lazy val docs = (project in file("documentation"))
   .dependsOn(core, circe, debezium, avro4s, shapeless, testing)
   .enablePlugins(MdocPlugin)
 
+lazy val vulcan = (project in file("vulcan"))
+  .settings(commonSettings)
+  .settings(
+    name := "kafka-streams4s-vulcan",
+    libraryDependencies ++= Seq(
+      "org.apache.kafka" % "kafka-streams" % KafkaVersion,
+      "com.github.fd4s" %% "vulcan" % VulcanVersion
+    )
+  )
+  .dependsOn(core)
+
 lazy val kafkaStreams4s = (project in file("."))
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(name := "kafka-streams4s")
-  .dependsOn(core, circe, debezium, avro4s, shapeless, testing, tests, docs)
-  .aggregate(core, circe, debezium, avro4s, shapeless, testing, tests, docs)
+  .dependsOn(core, circe, debezium, avro4s, shapeless, vulcan, testing, tests, docs)
+  .aggregate(core, circe, debezium, avro4s, shapeless, vulcan, testing, tests, docs)
