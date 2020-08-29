@@ -27,7 +27,7 @@ inThisBuild(
 
 enablePlugins(DockerComposePlugin)
 
-val Avro4sVersion = "3.1.1"
+val Avro4sVersion = "4.0.0"
 val CatsEffectVersion = "2.1.3"
 val CirceVersion = "0.13.0"
 val CirceDebeziumVersion = "0.15.1"
