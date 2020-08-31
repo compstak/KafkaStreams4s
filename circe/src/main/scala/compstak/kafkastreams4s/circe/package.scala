@@ -7,7 +7,7 @@ import org.apache.kafka.streams.StreamsBuilder
 import io.circe.Encoder
 
 package object circe {
-  type CirceTable[K, V] = STable[CirceCodec, K, V]
+  type CirceTable[K, V] = STable[CirceCodec, K, CirceCodec, V]
 
   object CirceTable {
 
