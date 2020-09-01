@@ -12,7 +12,7 @@ import compstak.kafkastreams4s.circe.CirceTable
 
 case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
   topicName: String,
-  idNameOrKeySchema: Either[String, DebeziumCompositeType[K]],
+  idNameOrKeySchema: Either[(String, DebeziumPrimitiveType[K]), DebeziumCompositeType[K]],
   toCirceTable: CirceTable[DebeziumKey[K], V]
 ) {
 
@@ -31,21 +31,23 @@ case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
   def mapFilterWithKey[V2: Encoder: Decoder](f: (DebeziumKey[K], V) => Option[V2]): DebeziumTable[K, V2] =
     copy(toCirceTable = toCirceTable.mapFilterWithKey(f))
 
-  def join[K2: DebeziumPrimitiveType, V2, Z: Encoder: Decoder](
+  def join[K2, V2, Z: Encoder: Decoder](
     other: DebeziumTable[K2, V2]
   )(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
     other.idNameOrKeySchema match {
-      case Left(idName) =>
+      case Left((idName, prim)) =>
+        implicit val primK2: DebeziumPrimitiveType[K2] = prim
         copy(toCirceTable = JoinTables.join(toCirceTable, other.toCirceTable, idName, other.topicName)(f)(g))
       case Right(schema) =>
         copy(toCirceTable = JoinTables.joinComposite(toCirceTable, other.toCirceTable, schema, other.topicName)(f)(g))
     }
 
-  def joinOption[K2: DebeziumPrimitiveType, V2, Z: Encoder: Decoder](
+  def joinOption[K2, V2, Z: Encoder: Decoder](
     other: DebeziumTable[K2, V2]
   )(f: V => Option[K2])(g: (V, V2) => Z): DebeziumTable[K, Z] =
     other.idNameOrKeySchema match {
-      case Left(idName) =>
+      case Left((idName, prim)) =>
+        implicit val primK2: DebeziumPrimitiveType[K2] = prim
         copy(toCirceTable = JoinTables.joinOption(toCirceTable, other.toCirceTable, idName, other.topicName)(f)(g))
       case Right(schema) =>
         copy(toCirceTable =
@@ -53,11 +55,12 @@ case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
         )
     }
 
-  def leftJoin[K2: DebeziumPrimitiveType, V2, Z: Encoder: Decoder](
+  def leftJoin[K2, V2, Z: Encoder: Decoder](
     other: DebeziumTable[K2, V2]
   )(f: V => K2)(g: (V, Option[V2]) => Z): DebeziumTable[K, Z] =
     other.idNameOrKeySchema match {
-      case Left(idName) =>
+      case Left((idName, prim)) =>
+        implicit val primK2: DebeziumPrimitiveType[K2] = prim
         copy(toCirceTable = JoinTables.leftJoin(toCirceTable, other.toCirceTable, idName, other.topicName)(f)(g))
       case Right(schema) =>
         copy(toCirceTable =
@@ -65,11 +68,12 @@ case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
         )
     }
 
-  def leftJoinOption[K2: DebeziumPrimitiveType, V2, Z: Encoder: Decoder](
+  def leftJoinOption[K2, V2, Z: Encoder: Decoder](
     other: DebeziumTable[K2, V2]
   )(f: V => Option[K2])(g: (V, Option[V2]) => Z): DebeziumTable[K, Z] =
     other.idNameOrKeySchema match {
-      case Left(idName) =>
+      case Left((idName, prim)) =>
+        implicit val primK2: DebeziumPrimitiveType[K2] = prim
         copy(toCirceTable = JoinTables.leftJoinOption(toCirceTable, other.toCirceTable, idName, other.topicName)(f)(g))
       case Right(schema) =>
         copy(toCirceTable =
@@ -79,14 +83,14 @@ case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
 }
 
 object DebeziumTable {
-  def withCirceDebezium[K: Encoder: Decoder, V: Encoder: Decoder](
+  def withCirceDebezium[K: Encoder: Decoder: DebeziumPrimitiveType, V: Encoder: Decoder](
     sb: StreamsBuilder,
     topicName: String,
     idName: String
   ): DebeziumTable[K, DebeziumValue[V]] =
     DebeziumTable(
       topicName,
-      Left(idName),
+      Left(idName -> DebeziumPrimitiveType[K]),
       CirceTable[DebeziumKey[K], DebeziumValue[V]](sb, topicName)
     )
 
