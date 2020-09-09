@@ -12,7 +12,7 @@ import cats.kernel.Monoid
  * A Kafka Streams KTable wrapper that abstracts over the codecs used in KTable operations.
  */
 class STable[HK[_]: Codec, K: HK, HV[_]: Codec, V: HV](val toKTable: KTable[K, V]) {
-  import STable.{fromKTable, optionCodec}
+  import STable.{fromKTable}
 
   /**
    * Materialize this STable to a topic using the provided topic name and the given codec.
@@ -36,8 +36,7 @@ class STable[HK[_]: Codec, K: HK, HV[_]: Codec, V: HV](val toKTable: KTable[K, V
           outputTopicName,
           Produced.`with`(
             Codec[HK].serde[K],
-            serdeForNull[HV, V2].asInstanceOf[Serde[V]] // LIES
-            // ev.apply()
+            serdeForNull[HV, V2].asInstanceOf[Serde[V]]
           )
         )
     )
@@ -212,30 +211,30 @@ class STable[HK[_]: Codec, K: HK, HV[_]: Codec, V: HV](val toKTable: KTable[K, V
       )
     )
 
-  def mapFilter[V2: HV](f: V => Option[V2]): STable[HK, K, HV, V2] =
-    // val mapped: KTable[K, Option[V2]] =
-    //   toKTable.mapValues(((v: V) => f(v)): ValueMapper[V, Option[V2]], materializedForCodec[HK, K, HV, Option[V2]])
-    // fromKTable(
-    //   mapped
-    //     .filter((k, o) => o.isDefined)
-    //     .mapValues(((ov: Option[V2]) => ov.get): ValueMapper[Option[V2], V2], materializedForCodec[HK, K, HV, V2])
-    // )
-    // TODO
-    ???
+  def mapFilter[V2: HV](f: V => Option[V2]): STable[HK, K, HV, V2] = {
+    implicit val hvOptionCodec = Codec.codecForOption[HV, V2]
+    val mapped: KTable[K, Option[V2]] =
+      toKTable.mapValues(((v: V) => f(v)): ValueMapper[V, Option[V2]], materializedForCodec[HK, K, HV, Option[V2]])
+    fromKTable(
+      mapped
+        .filter((k, o) => o.isDefined)
+        .mapValues(((ov: Option[V2]) => ov.get): ValueMapper[Option[V2], V2], materializedForCodec[HK, K, HV, V2])
+    )
+  }
 
-  def mapFilterWithKey[V2: HV](f: (K, V) => Option[V2]): STable[HK, K, HV, V2] =
-    // val mapped: KTable[K, Option[V2]] =
-    //   toKTable.mapValues(
-    //     ((k: K, v: V) => f(k, v)): ValueMapperWithKey[K, V, Option[V2]],
-    //     materializedForCodec[HK, K,HV, Option[V2]]
-    //   )
-    // fromKTable(
-    //   mapped
-    //     .filter((k, o) => o.isDefined)
-    //     .mapValues(((ov: Option[V2]) => ov.get): ValueMapper[Option[V2], V2], materializedForCodec[HK, K,HV, V2])
-    // )
-    // TODO
-    ???
+  def mapFilterWithKey[V2: HV](f: (K, V) => Option[V2]): STable[HK, K, HV, V2] = {
+    implicit val hvOptionCodec = Codec.codecForOption[HV, V2]
+    val mapped: KTable[K, Option[V2]] =
+      toKTable.mapValues(
+        ((k: K, v: V) => f(k, v)): ValueMapperWithKey[K, V, Option[V2]],
+        materializedForCodec[HK, K, HV, Option[V2]]
+      )
+    fromKTable(
+      mapped
+        .filter((k, o) => o.isDefined)
+        .mapValues(((ov: Option[V2]) => ov.get): ValueMapper[Option[V2], V2], materializedForCodec[HK, K, HV, V2])
+    )
+  }
 
   def flattenOption[V2: HV](implicit ev: V =:= Option[V2]): STable[HK, K, HV, V2] =
     fromKTable(
@@ -264,8 +263,6 @@ class STable[HK[_]: Codec, K: HK, HV[_]: Codec, V: HV](val toKTable: KTable[K, V
 }
 
 object STable {
-  implicit def optionCodec[C[_]: Codec, A: C]: C[Option[A]] =
-    Codec.codecForOption
 
   def fromKTable[HK[_]: Codec, K: HK, HV[_]: Codec, V: HV](ktable: KTable[K, V]): STable[HK, K, HV, V] =
     new STable[HK, K, HV, V](ktable)

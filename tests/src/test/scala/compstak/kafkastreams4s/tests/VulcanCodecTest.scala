@@ -18,9 +18,9 @@ class VulcanCodecTest extends munit.FunSuite {
       .liftF(result.to[IO]("out") >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
-        KafkaStreamsTestRunner.inputTestTable[IO, VulcanCodec, VulcanCodec](driver, "origin", input.toList: _*) >>
+        KafkaStreamsTestRunner.inputTestTable2[IO, VulcanCodec, VulcanCodec](driver, "origin", input.toList: _*) >>
           KafkaStreamsTestRunner
-            .outputTestTable[IO, VulcanCodec, String, VulcanCodec, Int](driver, "out")
+            .outputTestTable2[IO, VulcanCodec, String, VulcanCodec, Int](driver, "out")
             .map(outputData => assertEquals(outputData, input))
       )
       .unsafeToFuture
