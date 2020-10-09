@@ -5,6 +5,7 @@ _defaults: &defaults
     docker_layer_caching: false
   working_directory: ~/repo
   environment:
+    JVM_OPTS: -Xmx3000m
     TERM: dumb
 
 workflows:
