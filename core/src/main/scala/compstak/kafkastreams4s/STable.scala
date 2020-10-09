@@ -7,6 +7,7 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream._
 import SerdeHelpers._
 import cats.kernel.Monoid
+import cats.evidence.Is
 
 /**
  * A Kafka Streams KTable wrapper that abstracts over the codecs used in KTable operations.
@@ -36,7 +37,7 @@ class STable[HK[_]: Codec, K: HK, HV[_]: Codec, V: HV](val toKTable: KTable[K, V
           outputTopicName,
           Produced.`with`(
             Codec[HK].serde[K],
-            serdeForNull[HV, V2].asInstanceOf[Serde[V]]
+            Is.isFromPredef(ev).flip.substitute(serdeForNull[HV, V2])
           )
         )
     )
