@@ -8,7 +8,7 @@ import org.apache.kafka.streams.kstream.KTable
 import org.apache.kafka.streams.StreamsBuilder
 
 package object avro4s {
-  type Avro4sTable[K, V] = STable[Avro4sCodec, K, V]
+  type Avro4sTable[K, V] = STable[Avro4sCodec, K, Avro4sCodec, V]
 
   object Avro4sTable {
 

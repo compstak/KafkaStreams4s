@@ -7,7 +7,7 @@ import org.apache.kafka.streams.kstream.Consumed
 import _root_.vulcan.{Codec => VCodec}
 
 package object vulcan {
-  type VulcanTable[K, V] = STable[VulcanCodec, K, V]
+  type VulcanTable[K, V] = STable[VulcanCodec, K, VulcanCodec, V]
 
   object VulcanTable {
 
