@@ -61,19 +61,22 @@ Then we join the movies and purchases topics and lastly we use the `scanWith` op
 Now, all that's left is to direct the result into an output topic `example.output` and run the program
 
 ```scala mdoc:silent
-import cats.implicits._
-import cats.effect.IO
+import scala.concurrent.ExecutionContext
+import cats._, cats.implicits._
+import cats.effect._, cats.effect.implicits._
 import compstak.kafkastreams4s.Platform
 import org.apache.kafka.streams.Topology
 import java.util.Properties
 import java.time.Duration
+
+implicit val cs = IO.contextShift(ExecutionContext.global)
 
 val props = new Properties //in real code add the desired configuration to this object.
 
 val topology: IO[Topology] = result.to[IO]("example.output") >> IO(sb.build())
 
 val main: IO[Unit] = 
-  topology.flatMap(topo => Platform.run[IO](topo, props, Duration.ofSeconds(2)))
+  topology.flatMap(topo => Platform.run[IO](topo, props, Duration.ofSeconds(2))).void
 ```
 
 `compstak.kafkastreams4s.Platform` gives us a function `run` to run Kafka Streams programs and takes a topology, java properties and a timeout after which the stream threads will be shut off. 
