@@ -5,7 +5,6 @@ _defaults: &defaults
     docker_layer_caching: false
   working_directory: ~/repo
   environment:
-    SBT_OPTS: -Xmx3000m
     TERM: dumb
 
 workflows:
@@ -97,7 +96,7 @@ jobs:
 
     - run:
         name: Release snapshot version
-        command: cat /dev/null | sbt ci-release
+        command: cat /dev/null | sbt -mem 7000 ci-release
 
 
   publish-snapshot:
@@ -111,4 +110,4 @@ jobs:
 
     - run:
         name: Release tagged version
-        command: cat /dev/null | sbt ci-release
+        command: cat /dev/null | sbt -mem 7000 ci-release
