@@ -157,9 +157,7 @@ class DebeziumEndToEndTests extends munit.FunSuite {
       (a.payload.after.foldMap(_.foo), b.payload.after.foldMap(_.bar))
 
     def run: IO[Unit] =
-      topology.flatMap(top =>
-        Platform.streamsResource[IO](top, props, Duration.ofSeconds(2)).use(Platform.runStreams[IO])
-      )
+      topology.flatMap(top => Platform.run[IO](top, props, Duration.ofSeconds(2)).void)
   }
 
   object Consumer {
