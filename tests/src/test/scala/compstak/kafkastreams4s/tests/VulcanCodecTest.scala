@@ -12,19 +12,18 @@ class VulcanCodecTest extends munit.FunSuite {
 
     val sb = new StreamsBuilder
     val table = VulcanTable[String, Int](sb, "origin")
-    val result = table.mapCodec[VulcanCodec]
+    val result = table.mapCodec[VulcanCodec, VulcanCodec]
 
     Resource
       .liftF(result.to[IO]("out") >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
-        KafkaStreamsTestRunner.inputTestTable[IO, VulcanCodec](driver, "origin", input.toList: _*) >>
+        KafkaStreamsTestRunner.inputTestTable2[IO, VulcanCodec, VulcanCodec](driver, "origin", input.toList: _*) >>
           KafkaStreamsTestRunner
-            .outputTestTable[IO, VulcanCodec, String, Int](driver, "out")
+            .outputTestTable2[IO, VulcanCodec, String, VulcanCodec, Int](driver, "out")
             .map(outputData => assertEquals(outputData, input))
       )
       .unsafeToFuture
-
   }
 
 }
