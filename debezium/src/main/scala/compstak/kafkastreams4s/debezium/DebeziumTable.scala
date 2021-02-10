@@ -31,6 +31,9 @@ case class DebeziumTable[K: Encoder: Decoder, V: Encoder: Decoder](
   def mapFilterWithKey[V2: Encoder: Decoder](f: (DebeziumKey[K], V) => Option[V2]): DebeziumTable[K, V2] =
     copy(toCirceTable = toCirceTable.mapFilterWithKey(f))
 
+  def filter(f: V => Boolean): DebeziumTable[K, V] =
+    copy(toCirceTable = toCirceTable.filter(f))
+
   def join[K2, V2, Z: Encoder: Decoder](
     other: DebeziumTable[K2, V2]
   )(f: V => K2)(g: (V, V2) => Z): DebeziumTable[K, Z] =
