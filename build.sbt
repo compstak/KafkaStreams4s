@@ -38,7 +38,7 @@ val KafkaVersion = "2.7.0"
 val KafkaConnectHttp4sVersion = "0.5.0"
 val MunitVersion = "0.7.19"
 val ShapelessVersion = "2.3.3"
-val VulcanVersion = "1.2.0"
+val VulcanVersion = "1.5.0"
 
 scalacOptions ++= Seq(
   "-deprecation",
