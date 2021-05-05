@@ -112,7 +112,7 @@ lazy val shapeless = (project in file("shapeless"))
   .settings(commonSettings)
   .settings(
     name := "kafka-streams4s-shapeless",
-    libraryDependencies += "com.chuusai" %% "shapeless" % "2.3.3"
+    libraryDependencies += "com.chuusai" %% "shapeless" % "2.3.5"
   )
   .dependsOn(debezium)
 
