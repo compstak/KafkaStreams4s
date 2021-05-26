@@ -29,7 +29,7 @@ enablePlugins(DockerComposePlugin)
 
 val Avro4sVersion = "3.1.1"
 val CatsEffectVersion = "2.2.0"
-val CirceVersion = "0.13.0"
+val CirceVersion = "0.14.0"
 val CirceDebeziumVersion = "0.16.0"
 val DoobieVersion = "0.9.4"
 val FS2KafkaVersion = "1.0.0"
