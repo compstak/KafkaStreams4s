@@ -28,9 +28,7 @@ object Platform {
       r <- Resource
         .make(
           Sync[F].delay(new KafkaStreams(top, props))
-        )(s =>
-          Sync[F].delay(s.close(timeout)).flatMap(b => d.complete(b) >> Sync[F].unit)
-        )
+        )(s => Sync[F].delay(s.close(timeout)).flatMap(b => d.complete(b) >> Sync[F].unit))
         .use { streams =>
           Async[F].async_ { (k: Either[Throwable, Unit] => Unit) =>
             streams.setUncaughtExceptionHandler { (_: Thread, e: Throwable) =>
