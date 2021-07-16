@@ -1,7 +1,8 @@
 package compstak.kafkastreams4s.tests
 
 import cats.effect.{IO, Resource}
-import cats.implicits._
+import cats.syntax.all._
+import cats.effect.unsafe.implicits.global
 import compstak.kafkastreams4s.testing.KafkaStreamsTestRunner
 import compstak.kafkastreams4s.vulcan.{VulcanCodec, VulcanTable}
 import org.apache.kafka.streams.StreamsBuilder
@@ -15,7 +16,7 @@ class VulcanCodecTest extends munit.FunSuite {
     val result = table.mapCodec[VulcanCodec, VulcanCodec]
 
     Resource
-      .liftF(result.to[IO]("out") >> IO(sb.build))
+      .eval(result.to[IO]("out") >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable2[IO, VulcanCodec, VulcanCodec](driver, "origin", input.toList: _*) >>

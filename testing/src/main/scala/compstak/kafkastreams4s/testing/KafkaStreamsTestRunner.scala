@@ -1,13 +1,10 @@
 package compstak.kafkastreams4s.testing
 
 import org.apache.kafka.streams.Topology
-import cats.effect.ConcurrentEffect
-import cats.effect.ContextShift
 
 import scala.util.Random
 import cats.effect.Sync
 import cats.implicits._
-import cats.effect.Timer
 import cats.effect.implicits._
 import java.time.Duration
 import java.util.UUID

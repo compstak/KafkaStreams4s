@@ -14,6 +14,7 @@ import compstak.circe.debezium._
 import io.circe.JsonObject
 
 import io.circe.Json
+import cats.effect.unsafe.implicits.global
 
 class DebeziumTableJoinTests extends munit.FunSuite {
   test("STable joinOption should work as expected") {
@@ -66,7 +67,7 @@ class DebeziumTableJoinTests extends munit.FunSuite {
     )
 
     Resource
-      .liftF(result.to[IO](out) >> IO(sb.build))
+      .eval(result.to[IO](out) >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
