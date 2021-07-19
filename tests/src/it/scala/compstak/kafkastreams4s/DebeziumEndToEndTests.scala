@@ -169,7 +169,8 @@ class DebeziumEndToEndTests extends munit.FunSuite {
       .withGroupId("group")
 
     def consume: IO[(String, String, String)] =
-      consumerStream(settings)
+      KafkaConsumer
+        .stream(settings)
         .evalTap(_.subscribeTo(outputTopic))
         .flatMap(c => c.stream)
         .take(1)
