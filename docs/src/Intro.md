@@ -69,8 +69,6 @@ import org.apache.kafka.streams.Topology
 import java.util.Properties
 import java.time.Duration
 
-implicit val cs = IO.contextShift(ExecutionContext.global)
-
 val props = new Properties //in real code add the desired configuration to this object.
 
 val topology: IO[Topology] = result.to[IO]("example.output") >> IO(sb.build())
@@ -96,7 +94,7 @@ import compstak.kafkastreams4s.testing.KafkaStreamsTestRunner
 import org.apache.kafka.streams.TopologyTestDriver
 
 val driver: Resource[IO, TopologyTestDriver] = 
-  Resource.liftF(topology).flatMap(KafkaStreamsTestRunner.testDriverResource[IO])
+  Resource.eval(topology).flatMap(KafkaStreamsTestRunner.testDriverResource[IO])
 
 ```
 
@@ -128,6 +126,7 @@ def pipeIn(driver: TopologyTestDriver): IO[Unit] =
 Next, we'll get out the values from the output topic using a different function from the `KafkaStreamsTestRunner`.
 
 ```scala mdoc
+import cats.effect.unsafe.implicits.global
 
 def pipeOut(driver: TopologyTestDriver): IO[Map[String, Int]] =
   KafkaStreamsTestRunner.outputTestTable[IO, CirceCodec, String, Int](driver, "example.output")
