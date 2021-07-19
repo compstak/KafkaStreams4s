@@ -1,9 +1,9 @@
 package compstak.kafkastreams4s.tests
 
-import cats.effect.{Blocker, IO, Resource}
-import cats.implicits._
+import cats.effect.{IO, Resource}
+import cats.syntax.all._
 import org.http4s.implicits._
-import org.http4s.client.asynchttpclient.AsyncHttpClient
+import org.http4s.asynchttpclient.client.AsyncHttpClient
 import doobie.{ConnectionIO, Transactor}
 import doobie.implicits._
 import doobie.free.driver.DriverOp.Connect
@@ -26,13 +26,11 @@ import java.time.Duration
 import java.{util => ju}
 import org.apache.kafka.common.serialization.Serdes
 import cats.effect.ExitCode
+import cats.effect.unsafe.implicits.global
 
 class DebeziumEndToEndTests extends munit.FunSuite {
 
   override val munitTimeout = 3.minutes
-
-  implicit val ctx = IO.contextShift(ExecutionContext.global)
-  implicit val timer = IO.timer(ExecutionContext.global)
 
   val kafkaHost = "localhost:9092"
   val outputTopic = "output.topic"
@@ -46,13 +44,12 @@ class DebeziumEndToEndTests extends munit.FunSuite {
     "org.postgresql.Driver",
     s"jdbc:postgresql://localhost:54320/postgres",
     username,
-    password,
-    Blocker.liftExecutionContext(ExecutionContexts.synchronous)
+    password
   )
 
   def make: Resource[IO, Unit] =
     for {
-      _ <- Resource.liftF(ddl.transact(xa))
+      _ <- Resource.eval(ddl.transact(xa))
       client <- AsyncHttpClient.resource[IO]()
       _ <- KafkaConnectMigration[IO](
         client,
@@ -74,9 +71,9 @@ class DebeziumEndToEndTests extends munit.FunSuite {
         ),
         "experiment"
       ).evalMap(_.migrate)
-      _ <- Resource.liftF(insertStmt.transact(xa))
+      _ <- Resource.eval(insertStmt.transact(xa))
       // run the kafka streams topology for a minute and then stop it
-      _ <- Resource.liftF(
+      _ <- Resource.eval(
         (
           KafkaStream.run,
           IO.sleep(2.minutes)
