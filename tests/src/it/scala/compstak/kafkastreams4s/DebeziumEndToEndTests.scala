@@ -1,32 +1,24 @@
 package compstak.kafkastreams4s.tests
 
+import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.syntax.all._
-import org.http4s.implicits._
-import org.http4s.asynchttpclient.client.AsyncHttpClient
-import doobie.{ConnectionIO, Transactor}
-import doobie.implicits._
-import doobie.free.driver.DriverOp.Connect
-import doobie.util.ExecutionContexts
-import io.circe.Decoder
-import io.circe.literal._
-import fs2.kafka._
 import compstak.circe.debezium.{DebeziumKey, DebeziumValue}
 import compstak.http4s.kafka.connect.KafkaConnectMigration
-import compstak.kafkastreams4s.circe.CirceSerdes
 import compstak.kafkastreams4s.Platform
-import compstak.kafkastreams4s.debezium.JoinTables
-import org.apache.kafka.streams.StreamsBuilder
-import io.circe.Encoder
-import org.apache.kafka.streams.StreamsConfig
-import org.apache.kafka.streams.kstream.{Consumed, KTable, Produced}
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
+import compstak.kafkastreams4s.circe.CirceSerdes
+import doobie.implicits._
+import doobie.{ConnectionIO, Transactor}
+import fs2.kafka._
+import io.circe.literal._
+import io.circe.{Decoder, Encoder}
+import org.apache.kafka.streams.{StreamsBuilder, StreamsConfig}
+import org.http4s.asynchttpclient.client.AsyncHttpClient
+import org.http4s.implicits._
+
 import java.time.Duration
 import java.{util => ju}
-import org.apache.kafka.common.serialization.Serdes
-import cats.effect.ExitCode
-import cats.effect.unsafe.implicits.global
+import scala.concurrent.duration._
 
 class DebeziumEndToEndTests extends munit.FunSuite {
 
