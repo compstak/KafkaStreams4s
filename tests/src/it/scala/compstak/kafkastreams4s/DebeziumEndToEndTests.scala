@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 
 class DebeziumEndToEndTests extends munit.FunSuite {
 
-  override val munitTimeout = 5.minutes
+  override val munitTimeout = 3.minutes
 
   val kafkaHost = "localhost:9092"
   val outputTopic = "output.topic"
