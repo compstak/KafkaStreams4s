@@ -146,6 +146,8 @@ lazy val tests = (project in file("tests"))
       "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
       "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest
     ),
+    // fs2-kafka 2.x bring in 2.8.0 to the class path, which breaks the tests, hence the override
+    dependencyOverrides += "org.apache.kafka" % "kafka-clients" % "2.7.0",
     Defaults.itSettings,
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")
