@@ -37,7 +37,7 @@ val Http4sVersion = "0.23.0-RC1"
 val KafkaVersion = "2.7.0"
 
 val KafkaConnectHttp4sVersion = "0.6.0"
-val MunitVersion = "0.7.19"
+val MunitVersion = "0.7.28"
 val ShapelessVersion = "2.3.3"
 val VulcanVersion = "1.2.0"
 
