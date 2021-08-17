@@ -35,8 +35,8 @@ val DoobieVersion = "1.0.0-M2"
 val FS2KafkaVersion = "2.0.0"
 val Http4sVersion = "0.23.0-RC1"
 val KafkaVersion = "2.7.0"
-// TODO: uncomment when kafka-connect-migrate released
-//val KafkaConnectHttp4sVersion = "0.5.0"
+
+val KafkaConnectHttp4sVersion = "0.6.0"
 val MunitVersion = "0.7.19"
 val ShapelessVersion = "2.3.3"
 val VulcanVersion = "1.2.0"
@@ -128,10 +128,7 @@ lazy val testing = (project in file("testing"))
   )
   .dependsOn(core)
 
-lazy val depProject = ProjectRef(uri("https://github.com/dininski/kafka-connect-http4s.git"), "migrate")
-
 lazy val tests = (project in file("tests"))
-  .dependsOn(depProject)
   .configs(IntegrationTest)
   .settings(commonSettings)
   .settings(noPublishSettings)
@@ -140,8 +137,7 @@ lazy val tests = (project in file("tests"))
     libraryDependencies ++= Seq(
       "com.github.fd4s" %% "fs2-kafka" % FS2KafkaVersion % IntegrationTest,
       "org.scalameta" %% "munit" % MunitVersion % "test, it",
-      // TODO: uncomment when kafka-connect-migrate released
-//      "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
+      "com.compstak" %% "kafka-connect-migrate" % KafkaConnectHttp4sVersion % IntegrationTest,
       "io.circe" %% "circe-literal" % CirceVersion % IntegrationTest,
       "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
       "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest
