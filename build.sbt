@@ -27,16 +27,17 @@ inThisBuild(
 
 enablePlugins(DockerComposePlugin)
 
-val Avro4sVersion = "3.1.1"
-val CatsEffectVersion = "2.2.0"
-val CirceVersion = "0.13.0"
+val Avro4sVersion = "4.0.10"
+val CatsEffectVersion = "3.1.1"
+val CirceVersion = "0.14.1"
 val CirceDebeziumVersion = "0.16.0"
-val DoobieVersion = "0.9.4"
-val FS2KafkaVersion = "1.0.0"
-val Http4sVersion = "0.21.7"
+val DoobieVersion = "1.0.0-M2"
+val FS2KafkaVersion = "2.0.0"
+val Http4sVersion = "0.23.0-RC1"
 val KafkaVersion = "2.7.0"
-val KafkaConnectHttp4sVersion = "0.5.0"
-val MunitVersion = "0.7.28"
+
+val KafkaConnectHttp4sVersion = "0.6.0"
+val MunitVersion = "0.7.19"
 val ShapelessVersion = "2.3.3"
 val VulcanVersion = "1.2.0"
 
@@ -141,6 +142,8 @@ lazy val tests = (project in file("tests"))
       "org.http4s" %% "http4s-async-http-client" % Http4sVersion % IntegrationTest,
       "org.tpolecat" %% "doobie-postgres" % DoobieVersion % IntegrationTest
     ),
+    // fs2-kafka 2.x brings in 2.8.0 to the classpath, which breaks the tests, hence the override
+    dependencyOverrides += "org.apache.kafka" % "kafka-clients" % "2.7.0",
     Defaults.itSettings,
     inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings),
     testFrameworks += new TestFramework("munit.Framework")

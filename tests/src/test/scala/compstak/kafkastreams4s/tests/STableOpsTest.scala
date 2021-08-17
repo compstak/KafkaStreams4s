@@ -10,6 +10,7 @@ import scala.concurrent.duration._
 import compstak.kafkastreams4s.testing.KafkaStreamsTestRunner
 import scala.util.Try
 import cats.effect.Resource
+import cats.effect.unsafe.implicits.global
 
 class STableOpsTest extends munit.FunSuite {
 
@@ -35,7 +36,7 @@ class STableOpsTest extends munit.FunSuite {
     val result = tableA.join(tableB)(identity)((s, i) => s * i)
 
     Resource
-      .liftF(result.to[IO](out) >> IO(sb.build))
+      .eval(result.to[IO](out) >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
@@ -61,7 +62,7 @@ class STableOpsTest extends munit.FunSuite {
     val result = tableA.joinOption(tableB)(s => Try(s.toInt: Integer).toOption)((a, b) => s"$a:$b")
 
     Resource
-      .liftF(result.to[IO](out) >> IO(sb.build))
+      .eval(result.to[IO](out) >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
@@ -87,7 +88,7 @@ class STableOpsTest extends munit.FunSuite {
     val result = tableA.leftJoin(tableB)(identity)((s, i) => s * i.getOrElse(1))
 
     Resource
-      .liftF(result.to[IO](out) >> IO(sb.build))
+      .eval(result.to[IO](out) >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
@@ -113,7 +114,7 @@ class STableOpsTest extends munit.FunSuite {
     val result = tableA.keyJoin(tableB)((a, b) => s"$a:$b")
 
     Resource
-      .liftF(result.to[IO](out) >> IO(sb.build))
+      .eval(result.to[IO](out) >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
@@ -139,7 +140,7 @@ class STableOpsTest extends munit.FunSuite {
     val result = tableA.keyOuterJoin(tableB)(ior => ior.merge)
 
     Resource
-      .liftF(result.to[IO](out) >> IO(sb.build))
+      .eval(result.to[IO](out) >> IO(sb.build))
       .flatMap(topo => KafkaStreamsTestRunner.testDriverResource[IO](topo))
       .use(driver =>
         KafkaStreamsTestRunner.inputTestTable[IO, CirceCodec](driver, "a", inputA: _*) >>
