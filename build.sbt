@@ -33,7 +33,7 @@ val CirceVersion = "0.14.1"
 val CirceDebeziumVersion = "0.16.0"
 val DoobieVersion = "1.0.0-M2"
 val FS2KafkaVersion = "2.0.0"
-val Http4sVersion = "0.23.0-RC1"
+val Http4sVersion = "0.23.6"
 val KafkaVersion = "2.7.0"
 
 val KafkaConnectHttp4sVersion = "0.6.0"
